@@ -4,6 +4,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.*;
 import androidx.appcompat.app.AlertDialog;
@@ -19,6 +20,8 @@ import java.io.FileWriter;
  * Activity for account management operations.
  */
 public class AccountManagementActivity extends AppCompatActivity {
+    
+    private static final String TAG = "AccountManagementActivity";
     
     private Button btnRestore, btnBackupOwn, btnBackupCustomer, btnCopyLinks;
     private TextView tvStatus;
@@ -205,7 +208,11 @@ public class AccountManagementActivity extends AppCompatActivity {
                 });
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e(TAG, "Failed to save account metadata to CSV", e);
+            runOnUiThread(() -> {
+                Toast.makeText(this, "Warnung: Metadaten konnten nicht gespeichert werden", 
+                    Toast.LENGTH_LONG).show();
+            });
         }
     }
     

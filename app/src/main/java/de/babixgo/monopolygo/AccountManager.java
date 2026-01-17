@@ -1,5 +1,6 @@
 package de.babixgo.monopolygo;
 
+import android.util.Log;
 import java.io.File;
 import com.opencsv.CSVReader;
 import java.io.FileReader;
@@ -10,6 +11,7 @@ import java.util.ArrayList;
  * Manager class for MonopolyGo account operations (backup, restore, etc).
  */
 public class AccountManager {
+    private static final String TAG = "AccountManager";
     private static final String PACKAGE_NAME = "com.scopely.monopolygo";
     private static final String BASE_PATH = "/storage/emulated/0/MonopolyGo/";
     private static final String ACCOUNTS_EIGENE = BASE_PATH + "Accounts/Eigene/";
@@ -195,6 +197,11 @@ public class AccountManager {
             reader.skip(1); // Skip header
             String[] line;
             while ((line = reader.readNext()) != null) {
+                // Validate array has minimum required length
+                if (line == null || line.length == 0) {
+                    continue;
+                }
+                
                 AccountInfo info = new AccountInfo();
                 if (isOwnAccounts) {
                     info.internalId = line[0];
@@ -210,7 +217,7 @@ public class AccountManager {
                 accounts.add(info);
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            Log.e(TAG, "Failed to read account info from CSV: " + csvPath, e);
         }
         
         return accounts;
