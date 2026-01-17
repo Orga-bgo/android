@@ -26,5 +26,5 @@
 -keep class com.opencsv.** { *; }
 -dontwarn com.opencsv.**
 
-# AccountInfo Klasse
+# AccountInfo Class
 -keep class de.babixgo.monopolygo.AccountManager$AccountInfo { *; }

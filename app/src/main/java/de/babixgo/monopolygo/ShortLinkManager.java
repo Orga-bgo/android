@@ -26,33 +26,33 @@ public class ShortLinkManager {
      * @return The short URL or null if failed
      */
     public static String createShortLink(String userId, String path) {
-        return createShortLink(null, userId, path);
+        throw new IllegalStateException(
+                "A non-null Context is required to create short links securely. " +
+                "Use createShortLink(Context, String, String) instead.");
     }
     
     /**
      * Create a short link for a MonopolyGo friend link.
-     * @param context The application context (optional - will use hardcoded values if null)
+     * @param context The application context (must be non-null to load API credentials)
      * @param userId The user ID
      * @param path The path/title for the short link
      * @return The short URL or null if failed
+     * @throws IllegalArgumentException if context is null
+     * @throws IllegalStateException if API credentials cannot be loaded from resources
      */
     public static String createShortLink(Context context, String userId, String path) {
+        if (context == null) {
+            throw new IllegalArgumentException("Context must not be null when creating short links.");
+        }
+
         String apiKey;
         String domain;
         
-        if (context != null) {
-            try {
-                apiKey = context.getString(R.string.shortio_api_key);
-                domain = context.getString(R.string.shortio_domain);
-            } catch (Exception e) {
-                // Fallback to hardcoded values if resources not available
-                apiKey = "sk_MaQODQPO0HKJTZF1";
-                domain = "go.babixgo.de";
-            }
-        } else {
-            // Fallback to hardcoded values when context is not provided
-            apiKey = "sk_MaQODQPO0HKJTZF1";
-            domain = "go.babixgo.de";
+        try {
+            apiKey = context.getString(R.string.shortio_api_key);
+            domain = context.getString(R.string.shortio_domain);
+        } catch (Exception e) {
+            throw new IllegalStateException("Failed to load Short.io API credentials from resources.", e);
         }
         
         String originalUrl = "monopolygo://add-friend/" + userId;
