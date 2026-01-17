@@ -1,0 +1,72 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [ main, copilot/** ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+      
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+      
+      - name: Download Gradle wrapper JAR
+        run: |
+          mkdir -p gradle/wrapper
+          cd gradle/wrapper
+          if [ ! -f gradle-wrapper.jar ]; then
+            curl -L -o gradle-wrapper.jar https://github.com/gradle/gradle/raw/v8.0.0/gradle/wrapper/gradle-wrapper.jar
+          fi
+          cd ../..
+      
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --stacktrace
+      
+      - name: Build Release APK (unsigned)
+        run: ./gradlew assembleRelease --stacktrace
+        continue-on-error: true
+      
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+      
+      - name: Generate APK info
+        if: success()
+        run: |
+          echo "## Build Information" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ APK built successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ -f app/build/outputs/apk/debug/app-debug.apk ]; then
+            DEBUG_SIZE=$(ls -lh app/build/outputs/apk/debug/app-debug.apk | awk '{print $5}')
+            echo "📦 Debug APK size: $DEBUG_SIZE" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ -f app/build/outputs/apk/release/app-release-unsigned.apk ]; then
+            RELEASE_SIZE=$(ls -lh app/build/outputs/apk/release/app-release-unsigned.apk | awk '{print $5}')
+            echo "📦 Release APK size: $RELEASE_SIZE" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation Instructions" >> $GITHUB_STEP_SUMMARY
+          echo "1. Download the APK from the artifacts above" >> $GITHUB_STEP_SUMMARY
+          echo "2. Transfer to your Android device" >> $GITHUB_STEP_SUMMARY
+          echo "3. Enable 'Unknown Sources' in Settings" >> $GITHUB_STEP_SUMMARY
+          echo "4. Install the APK" >> $GITHUB_STEP_SUMMARY
+          echo "5. Grant root permissions when prompted" >> $GITHUB_STEP_SUMMARY
