@@ -186,26 +186,24 @@ public class AccountManagementActivity extends AppCompatActivity {
         try {
             boolean writeHeader = !csvFile.exists();
             
-            CSVWriter writer = new CSVWriter(new FileWriter(csvPath, true));
-            
-            if (writeHeader) {
+            try (CSVWriter writer = new CSVWriter(new FileWriter(csvPath, true))) {
+                if (writeHeader) {
+                    writer.writeNext(new String[]{
+                        "InterneID", "UserID", "Datum", "Shortlink", "Notiz"
+                    });
+                }
+                
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                String date = sdf.format(new Date());
+                
                 writer.writeNext(new String[]{
-                    "InterneID", "UserID", "Datum", "Shortlink", "Notiz"
+                    internalId,
+                    userId != null ? userId : "N/A",
+                    date,
+                    shortLink != null ? shortLink : "N/A",
+                    note
                 });
             }
-            
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-            String date = sdf.format(new Date());
-            
-            writer.writeNext(new String[]{
-                internalId,
-                userId != null ? userId : "N/A",
-                date,
-                shortLink != null ? shortLink : "N/A",
-                note
-            });
-            
-            writer.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
