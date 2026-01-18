@@ -699,16 +699,33 @@ public class AccountManager {
 
         // Altes Temp-Verzeichnis löschen falls vorhanden (same as restore)
         if (tempDirFile.exists()) {
-            deleteRecursive(tempDirFile);
+            Log.d(TAG, "Deleting old temp directory: " + tempDir);
+            String rmCommand = "rm -rf " + escapeShellArg(tempDir);
+            RootManager.runRootCommand(rmCommand);
         }
 
-        tempDirFile.mkdirs();
+        // Create temp directory with ROOT (required for /data/local/tmp/)
+        Log.d(TAG, "Creating temp directory with root: " + tempDir);
+        String mkdirCommand = "mkdir -p " + escapeShellArg(tempDir);
+        String mkdirResult = RootManager.runRootCommand(mkdirCommand);
+
+        // Verify directory was created
+        String verifyCommand = "[ -d " + escapeShellArg(tempDir) + " ] && echo 'exists' || echo 'not found'";
+        String verifyResult = RootManager.runRootCommand(verifyCommand);
+
+        if (!verifyResult.contains("exists")) {
+            Log.e(TAG, "Failed to create temp directory: " + tempDir);
+            return false;
+        }
+
+        Log.d(TAG, "Temp directory created successfully: " + tempDir);
 
         // 4. Find the account file - check if exists and search if needed
         String accountFilePath = findAccountFileForBackup();
         if (accountFilePath == null) {
             Log.e(TAG, "Account file not found - game may not have been run yet");
-            deleteRecursive(tempDirFile);
+            // Delete temp directory with root
+            RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
             return false;
         }
 
@@ -727,7 +744,8 @@ public class AccountManager {
 
         if (!copySuccess) {
             Log.e(TAG, "Failed to copy account file. Command output: " + cpResult);
-            deleteRecursive(tempDirFile);
+            // Delete temp directory with root
+            RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
             return false;
         }
         
@@ -742,9 +760,10 @@ public class AccountManager {
         String zipResult = RootManager.runRootCommand(zipCommand);
         
         boolean zipSuccess = new File(tempZipFile).exists() && new File(tempZipFile).length() > 0;
-        
+
         if (!zipSuccess) {
-            deleteRecursive(tempDirFile);
+            // Delete temp directory with root
+            RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
             return false;
         }
         
@@ -757,18 +776,20 @@ public class AccountManager {
         }
         
         boolean moved = tempZipFileObj.renameTo(zipFile);
-        
+
         if (!moved) {
-            deleteRecursive(tempDirFile);
+            // Delete temp directory with root
+            RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
             if (tempZipFileObj.exists()) {
                 tempZipFileObj.delete();
             }
             return false;
         }
         
-        // 6. Aufräumen (same as restore step 6)
-        deleteRecursive(tempDirFile);
-        
+        // 6. Aufräumen (same as restore step 6) - use root to delete
+        Log.d(TAG, "Cleaning up temp directory");
+        RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
+
         return success;
     }
     
