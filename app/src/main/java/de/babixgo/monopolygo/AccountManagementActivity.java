@@ -225,14 +225,26 @@ public class AccountManagementActivity extends AppCompatActivity {
             String date = getCurrentDate();
             String fb = fbIncluded ? "JA" : "NEIN";
             
-            // Properly escape the note field to prevent CSV injection
-            String escapedNote = note.replace("\"", "\"\"");
+            // Properly escape all fields to prevent CSV injection
+            String escapedId = escapeCSV(id);
+            String escapedDate = escapeCSV(date);
+            String escapedFb = escapeCSV(fb);
+            String escapedNote = escapeCSV(note);
             
-            fw.write(String.format("%s,%s,%s,\"%s\"\n", id, date, fb, escapedNote));
+            fw.write(String.format("\"%s\",\"%s\",\"%s\",\"%s\"\n", 
+                escapedId, escapedDate, escapedFb, escapedNote));
             fw.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+    
+    private String escapeCSV(String value) {
+        if (value == null) {
+            return "";
+        }
+        // Escape quotes by doubling them
+        return value.replace("\"", "\"\"");
     }
     
     private String getCurrentDate() {
@@ -275,24 +287,43 @@ public class AccountManagementActivity extends AppCompatActivity {
         String accountPath = AccountManager.getAccountsEigenePath() + accountName;
         File accountDir = new File(accountPath);
         
-        if (deleteRecursive(accountDir)) {
-            Toast.makeText(this, "✅ Account gelöscht", Toast.LENGTH_SHORT).show();
-            updateAccountCount();
-        } else {
-            Toast.makeText(this, "❌ Fehler beim Löschen", Toast.LENGTH_SHORT).show();
+        try {
+            if (deleteRecursive(accountDir)) {
+                Toast.makeText(this, "✅ Account gelöscht", Toast.LENGTH_SHORT).show();
+                updateAccountCount();
+            } else {
+                Toast.makeText(this, "❌ Fehler beim Löschen", Toast.LENGTH_SHORT).show();
+            }
+        } catch (Exception e) {
+            Toast.makeText(this, "❌ Fehler beim Löschen: " + e.getMessage(), 
+                Toast.LENGTH_SHORT).show();
         }
     }
     
     private boolean deleteRecursive(File fileOrDirectory) {
+        if (fileOrDirectory == null || !fileOrDirectory.exists()) {
+            return false;
+        }
+        
         if (fileOrDirectory.isDirectory()) {
             File[] children = fileOrDirectory.listFiles();
             if (children != null) {
                 for (File child : children) {
-                    deleteRecursive(child);
+                    if (!deleteRecursive(child)) {
+                        // Log the failure but continue trying to delete other files
+                        android.util.Log.w("AccountManagement", 
+                            "Failed to delete: " + child.getAbsolutePath());
+                    }
                 }
             }
         }
-        return fileOrDirectory.delete();
+        
+        boolean deleted = fileOrDirectory.delete();
+        if (!deleted) {
+            android.util.Log.w("AccountManagement", 
+                "Failed to delete: " + fileOrDirectory.getAbsolutePath());
+        }
+        return deleted;
     }
     
     private void showEditDialog() {

@@ -179,13 +179,19 @@ public class AccountManager {
      * @return true wenn erfolgreich
      */
     public static boolean backupAccountExtended(String accountName, boolean includeFbToken) {
+        // Validate accountName to prevent command injection
+        if (!isValidAccountName(accountName)) {
+            Log.e(TAG, "Invalid account name: " + accountName);
+            return false;
+        }
+        
         // 1. App stoppen für konsistente Daten
         forceStopApp();
         
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            Log.e(TAG, "Sleep interrupted during backup", e);
         }
         
         // 2. Temporäres Verzeichnis erstellen
@@ -277,13 +283,19 @@ public class AccountManager {
      * Erweiterte Restore-Funktion für ZIP-Archive
      */
     public static boolean restoreAccountExtended(String accountName) {
+        // Validate accountName to prevent command injection
+        if (!isValidAccountName(accountName)) {
+            Log.e(TAG, "Invalid account name: " + accountName);
+            return false;
+        }
+        
         // 1. App stoppen
         forceStopApp();
         
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            Log.e(TAG, "Sleep interrupted during restore", e);
         }
         
         // 2. ZIP-Pfad finden
@@ -371,9 +383,29 @@ public class AccountManager {
             fileList.append("- ").append(file).append("\n");
         }
         
-        RootManager.runRootCommand(
-            "echo '" + fileList.toString() + "' > \"" + tempDir + "backup_info.txt\""
-        );
+        // Write file using Java instead of shell echo to avoid command injection
+        try {
+            File infoFile = new File(tempDir + "backup_info.txt");
+            java.io.FileWriter writer = new java.io.FileWriter(infoFile);
+            writer.write(fileList.toString());
+            writer.close();
+            // Set permissions via root
+            RootManager.runRootCommand("chmod 644 \"" + tempDir + "backup_info.txt\"");
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to create backup info file", e);
+        }
+    }
+    
+    /**
+     * Hilfsmethode: Validate account name to prevent command injection
+     */
+    private static boolean isValidAccountName(String accountName) {
+        if (accountName == null || accountName.isEmpty()) {
+            return false;
+        }
+        // Only allow alphanumeric characters, underscores, hyphens, and dots
+        // This prevents shell metacharacters from being injected
+        return accountName.matches("^[a-zA-Z0-9._-]+$");
     }
     
     /**

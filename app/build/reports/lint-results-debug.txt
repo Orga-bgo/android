@@ -68,7 +68,10 @@
 
    https://developer.android.com/distribute/best-practices/develop/target-sdk.html
 
-/home/runner/work/android/android/app/src/main/java/de/babixgo/monopolygo/AccountManager.java:22: Warning: Do not hardcode "/data/"; use Context.getFilesDir().getPath() instead [SdCardPath]
+/home/runner/work/android/android/app/src/main/java/de/babixgo/monopolygo/AccountManager.java:25: Warning: Do not hardcode "/data/"; use Context.getFilesDir().getPath() instead [SdCardPath]
+    private static final String DATA_DIR = "/data/data/" + PACKAGE_NAME + "/";
+                                           ~~~~~~~~~~~~~
+/home/runner/work/android/android/app/src/main/java/de/babixgo/monopolygo/AccountManager.java:27: Warning: Do not hardcode "/data/"; use Context.getFilesDir().getPath() instead [SdCardPath]
     private static final String DATA_FILE_PATH = "/data/data/" + PACKAGE_NAME + 
                                                  ~~~~~~~~~~~~~
 /home/runner/work/android/android/app/src/main/java/de/babixgo/monopolygo/DataExtractor.java:31: Warning: Do not hardcode "/data/"; use Context.getFilesDir().getPath() instead [SdCardPath]
@@ -103,15 +106,6 @@
    are cases where you deliberately want to stick with an older version.
    However, you may simply not be aware that a more recent version is
    available, and that is what this lint check helps find.
-
-/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:73: Warning: Set android:baselineAligned="false" on this element for better performance [DisableBaselineAlignment]
-                <LinearLayout
-                 ~~~~~~~~~~~~
-
-   Explanation for issues of type "DisableBaselineAlignment":
-   When a LinearLayout is used to distribute the space proportionally between
-   nested layouts, the baseline alignment property should be turned off to
-   make the layout computation faster.
 
 /home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:6: Warning: Possible overdraw: Root element paints background #F5F5F5 with a theme that also paints a background (inferred theme is @style/AppTheme) [Overdraw]
     android:background="#F5F5F5">
@@ -160,6 +154,9 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 ^
 /home/runner/work/android/android/app/src/main/res/layout/dialog_backup_own.xml:2: Warning: The resource R.layout.dialog_backup_own appears to be unused [UnusedResources]
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+^
+/home/runner/work/android/android/app/src/main/res/layout/dialog_backup_simple.xml:2: Warning: The resource R.layout.dialog_backup_simple appears to be unused [UnusedResources]
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
 ^
 /home/runner/work/android/android/app/src/main/res/values/secrets.xml:5: Warning: The resource R.string.shortio_api_key appears to be unused [UnusedResources]
@@ -284,10 +281,10 @@
 
    https://developer.android.com/guide/topics/text/autofill.html
 
-/home/runner/work/android/android/app/src/main/java/de/babixgo/monopolygo/AccountManagementActivity.java:55: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+/home/runner/work/android/android/app/src/main/java/de/babixgo/monopolygo/AccountManagementActivity.java:56: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
         tvAccountCount.setText(count + " Accounts\nvorhanden");
                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/android/android/app/src/main/java/de/babixgo/monopolygo/AccountManagementActivity.java:59: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
+/home/runner/work/android/android/app/src/main/java/de/babixgo/monopolygo/AccountManagementActivity.java:60: Warning: Do not concatenate text displayed with setText. Use resource string with placeholders. [SetTextI18n]
         tvSecurityStatus.setText("Sicherheitsstatus:\n" + 
                                  ^
 /home/runner/work/android/android/app/src/main/java/de/babixgo/monopolygo/FriendshipActivity.java:31: Warning: String literal in setText can not be translated. Use Android resources instead. [SetTextI18n]
@@ -346,34 +343,34 @@
 /home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:60: Warning: Hardcoded string "Accounts", should use @string resource [HardcodedText]
                     android:text="Accounts"
                     ~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:88: Warning: Hardcoded string "👤 ", should use @string resource [HardcodedText]
+/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:89: Warning: Hardcoded string "👤 ", should use @string resource [HardcodedText]
                             android:text="👤 "
                             ~~~~~~~~~~~~~~~~~~
-/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:95: Warning: Hardcoded string "3 Accountsnvorhanden", should use @string resource [HardcodedText]
+/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:96: Warning: Hardcoded string "3 Accountsnvorhanden", should use @string resource [HardcodedText]
                             android:text="3 Accounts\nvorhanden"
                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:109: Warning: Hardcoded string "🛡️ ", should use @string resource [HardcodedText]
+/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:110: Warning: Hardcoded string "🛡️ ", should use @string resource [HardcodedText]
                             android:text="🛡️ "
                             ~~~~~~~~~~~~~~~~~~~
-/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:116: Warning: Hardcoded string "Sicherheitsstatus:nAktiv", should use @string resource [HardcodedText]
+/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:117: Warning: Hardcoded string "Sicherheitsstatus:nAktiv", should use @string resource [HardcodedText]
                             android:text="Sicherheitsstatus:\nAktiv"
                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:130: Warning: Hardcoded string "Account wiederherstellen", should use @string resource [HardcodedText]
+/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:131: Warning: Hardcoded string "Account wiederherstellen", should use @string resource [HardcodedText]
                     android:text="Account wiederherstellen"
                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:147: Warning: Hardcoded string "Account sichern", should use @string resource [HardcodedText]
+/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:148: Warning: Hardcoded string "Account sichern", should use @string resource [HardcodedText]
                     android:text="Account sichern"
                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:164: Warning: Hardcoded string "Account löschen", should use @string resource [HardcodedText]
+/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:165: Warning: Hardcoded string "Account löschen", should use @string resource [HardcodedText]
                     android:text="Account löschen"
                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:181: Warning: Hardcoded string "Account bearbeiten", should use @string resource [HardcodedText]
+/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:182: Warning: Hardcoded string "Account bearbeiten", should use @string resource [HardcodedText]
                     android:text="Account bearbeiten"
                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:208: Warning: Hardcoded string "ℹ️ ", should use @string resource [HardcodedText]
+/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:209: Warning: Hardcoded string "ℹ️ ", should use @string resource [HardcodedText]
                 android:text="ℹ️ "
                 ~~~~~~~~~~~~~~~~~~
-/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:215: Warning: Hardcoded string "Informationen zur Account-Verwaltung", should use @string resource [HardcodedText]
+/home/runner/work/android/android/app/src/main/res/layout/activity_account_management_new.xml:216: Warning: Hardcoded string "Informationen zur Account-Verwaltung", should use @string resource [HardcodedText]
                 android:text="Informationen zur Account-Verwaltung"
                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 /home/runner/work/android/android/app/src/main/res/layout/activity_friendship.xml:11: Warning: Hardcoded string "Freundschaftsbalken", should use @string resource [HardcodedText]
@@ -430,6 +427,27 @@
 /home/runner/work/android/android/app/src/main/res/layout/dialog_backup_customer.xml:33: Warning: Hardcoded string "monopolygo://add-friend/...", should use @string resource [HardcodedText]
         android:hint="monopolygo://add-friend/..."
         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/android/android/app/src/main/res/layout/dialog_backup_extended.xml:13: Warning: Hardcoded string "Interne ID", should use @string resource [HardcodedText]
+        android:hint="Interne ID"
+        ~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/android/android/app/src/main/res/layout/dialog_backup_extended.xml:29: Warning: Hardcoded string "Notiz (optional)", should use @string resource [HardcodedText]
+        android:hint="Notiz (optional)"
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/android/android/app/src/main/res/layout/dialog_backup_extended.xml:63: Warning: Hardcoded string "FB-Token sichern?", should use @string resource [HardcodedText]
+                android:text="FB-Token sichern?"
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/android/android/app/src/main/res/layout/dialog_backup_extended.xml:71: Warning: Hardcoded string "Sichert Facebook-Login Informationen (com.facebook.AccessTokenManager.SharedPreferences.xml)", should use @string resource [HardcodedText]
+                android:text="Sichert Facebook-Login Informationen (com.facebook.AccessTokenManager.SharedPreferences.xml)"
+                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/android/android/app/src/main/res/layout/dialog_backup_extended.xml:93: Warning: Hardcoded string "📦 Gesicherte Dateien:", should use @string resource [HardcodedText]
+            android:text="📦 Gesicherte Dateien:"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/android/android/app/src/main/res/layout/dialog_backup_extended.xml:102: Warning: Hardcoded string "✓ Account-Daten (IMMER)n✓ Device-IDs (falls vorhanden)n✓ Spieler-Einstellungen (falls vorhanden)n✓ Mod-Einstellungen (falls vorhanden)", should use @string resource [HardcodedText]
+            android:text="✓ Account-Daten (IMMER)\n✓ Device-IDs (falls vorhanden)\n✓ Spieler-Einstellungen (falls vorhanden)\n✓ Mod-Einstellungen (falls vorhanden)"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/runner/work/android/android/app/src/main/res/layout/dialog_backup_extended.xml:110: Warning: Hardcoded string "n💾 Backup wird als ZIP-Archiv gespeichert", should use @string resource [HardcodedText]
+            android:text="\n💾 Backup wird als ZIP-Archiv gespeichert"
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 /home/runner/work/android/android/app/src/main/res/layout/dialog_backup_own.xml:11: Warning: Hardcoded string "Interne ID:", should use @string resource [HardcodedText]
         android:text="Interne ID:"
         ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -476,4 +494,4 @@
    If you have started adding RTL attributes, but have not yet finished the
    migration, you can set the attribute to false to satisfy this lint check.
 
-1 errors, 94 warnings
+1 errors, 102 warnings
