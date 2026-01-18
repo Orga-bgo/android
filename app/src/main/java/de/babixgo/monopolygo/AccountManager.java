@@ -697,12 +697,15 @@ public class AccountManager {
      * Helper method: Copy optional file
      */
     private static void copyOptionalFile(String source, String dest, List<String> fileList) {
-        String command = "cp " + escapeShellArg(source) + " " + escapeShellArg(dest) + " 2>/dev/null";
-        RootManager.runRootCommand(command);
+        String command = "cp " + escapeShellArg(source) + " " + escapeShellArg(dest) + " 2>&1";
+        String result = RootManager.runRootCommand(command);
         
         if (new File(dest).exists()) {
             fileList.add(new File(dest).getName());
             android.util.Log.d("BabixGO", "✓ Optional kopiert: " + new File(dest).getName());
+        } else if (!result.isEmpty() && !result.contains("No such file")) {
+            // Log unexpected errors, but expected "No such file" is fine for optional files
+            android.util.Log.d("BabixGO", "Optional file not copied: " + source + " - " + result);
         }
     }
     
@@ -728,7 +731,9 @@ public class AccountManager {
         }
         
         // Fallback: find (PACKAGE_NAME is safe, from constant)
-        String cmd = "find " + escapeShellArg("/data/data/" + PACKAGE_NAME) + " -name '*WithBuddies.Services.User*.dat' 2>/dev/null | head -n 1";
+        // Note: Wildcards must be outside quotes to be interpreted by shell
+        String basePath = "/data/data/" + PACKAGE_NAME;
+        String cmd = "find " + escapeShellArg(basePath) + " -name '*WithBuddies.Services.User*.dat' 2>/dev/null | head -n 1";
         String result = RootManager.runRootCommand(cmd);
         
         if (result != null && result.trim().length() > 0 && !result.contains("Error")) {
