@@ -1,0 +1,31 @@
+# Android build artifacts
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+*.apk
+*.ap_
+*.aab
+
+# Gradle wrapper
+# Note: gradle-wrapper.jar should be committed (it's required)
+
+# Secrets
+app/src/main/res/values/secrets.xml
+
+# Logs
+*.log
+
+# Generated files
+bin/
+gen/
+out/
+
+# Keystore files
+*.jks
+*.keystore

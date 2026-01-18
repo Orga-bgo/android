@@ -4,6 +4,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.*;
 import androidx.appcompat.app.AlertDialog;
@@ -12,11 +13,15 @@ import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import com.opencsv.CSVWriter;
+import java.io.FileWriter;
 
 /**
  * Activity for account management operations.
  */
 public class AccountManagementActivity extends AppCompatActivity {
+    
+    private static final String TAG = "AccountManagementActivity";
     
     private Button btnRestore, btnBackupOwn, btnBackupCustomer, btnCopyLinks;
     private TextView tvStatus;
@@ -153,6 +158,11 @@ public class AccountManagementActivity extends AppCompatActivity {
                 internalId
             );
             
+            if (success) {
+                // Save CSV metadata
+                saveAccountMetadata(internalId, userId, shortLink, note);
+            }
+            
             final String finalShortLink = shortLink;
             final String finalUserId = userId;
             runOnUiThread(() -> {
@@ -169,6 +179,41 @@ public class AccountManagementActivity extends AppCompatActivity {
                 }
             });
         }).start();
+    }
+    
+    private void saveAccountMetadata(String internalId, String userId, 
+                                     String shortLink, String note) {
+        String csvPath = AccountManager.getAccountsEigenePath() + "Accountinfos.csv";
+        File csvFile = new File(csvPath);
+        
+        try {
+            boolean writeHeader = !csvFile.exists();
+            
+            try (CSVWriter writer = new CSVWriter(new FileWriter(csvPath, true))) {
+                if (writeHeader) {
+                    writer.writeNext(new String[]{
+                        "InterneID", "UserID", "Datum", "Shortlink", "Notiz"
+                    });
+                }
+                
+                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+                String date = sdf.format(new Date());
+                
+                writer.writeNext(new String[]{
+                    internalId,
+                    userId != null ? userId : "N/A",
+                    date,
+                    shortLink != null ? shortLink : "N/A",
+                    note
+                });
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to save account metadata to CSV", e);
+            runOnUiThread(() -> {
+                Toast.makeText(this, "Warnung: Metadaten konnten nicht gespeichert werden", 
+                    Toast.LENGTH_LONG).show();
+            });
+        }
     }
     
     private void showBackupCustomerDialog() {

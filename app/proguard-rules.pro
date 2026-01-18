@@ -6,14 +6,25 @@
 -keep class de.babixgo.monopolygo.RootManager { *; }
 -keep class de.babixgo.monopolygo.AccountManager { *; }
 
-# Keep OkHttp
+# OkHttp and Okio
 -dontwarn okhttp3.**
 -dontwarn okio.**
+-dontwarn javax.annotation.**
+-keepnames class okhttp3.internal.publicsuffix.PublicSuffixDatabase
 
-# Keep Gson
+# Gson
 -keepattributes Signature
 -keepattributes *Annotation*
+-dontwarn sun.misc.**
 -keep class com.google.gson.** { *; }
+-keep class * implements com.google.gson.TypeAdapter
+-keep class * implements com.google.gson.TypeAdapterFactory
+-keep class * implements com.google.gson.JsonSerializer
+-keep class * implements com.google.gson.JsonDeserializer
 
-# Keep OpenCSV
+# OpenCSV
 -keep class com.opencsv.** { *; }
+-dontwarn com.opencsv.**
+
+# AccountInfo Class
+-keep class de.babixgo.monopolygo.AccountManager$AccountInfo { *; }

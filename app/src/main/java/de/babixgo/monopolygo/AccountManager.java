@@ -1,11 +1,17 @@
 package de.babixgo.monopolygo;
 
+import android.util.Log;
 import java.io.File;
+import com.opencsv.CSVReader;
+import java.io.FileReader;
+import java.util.List;
+import java.util.ArrayList;
 
 /**
  * Manager class for MonopolyGo account operations (backup, restore, etc).
  */
 public class AccountManager {
+    private static final String TAG = "AccountManager";
     private static final String PACKAGE_NAME = "com.scopely.monopolygo";
     private static final String BASE_PATH = "/storage/emulated/0/MonopolyGo/";
     private static final String ACCOUNTS_EIGENE = BASE_PATH + "Accounts/Eigene/";
@@ -160,5 +166,60 @@ public class AccountManager {
     
     public static String getBackupsPath() {
         return BACKUPS_PATH;
+    }
+    
+    /**
+     * Inner class to hold account information from CSV files.
+     */
+    public static class AccountInfo {
+        public String internalId;
+        public String userId;
+        public String date;
+        public String shortLink;
+        public String note;
+        public String customerId;
+        public String username;
+    }
+    
+    /**
+     * Read account info from CSV file.
+     * @param isOwnAccounts true for own accounts, false for customer accounts
+     * @return List of AccountInfo objects
+     */
+    public static List<AccountInfo> readAccountInfos(boolean isOwnAccounts) {
+        String csvPath = isOwnAccounts ? 
+            ACCOUNTS_EIGENE + "Accountinfos.csv" : 
+            ACCOUNTS_KUNDEN + "Kundeninfos.csv";
+        
+        List<AccountInfo> accounts = new ArrayList<>();
+        
+        try (CSVReader reader = new CSVReader(new FileReader(csvPath))) {
+            reader.skip(1); // Skip header
+            String[] line;
+            while ((line = reader.readNext()) != null) {
+                // Validate array has minimum required length
+                if (line == null || line.length == 0) {
+                    continue;
+                }
+                
+                AccountInfo info = new AccountInfo();
+                if (isOwnAccounts) {
+                    info.internalId = line[0];
+                    info.userId = line.length > 1 ? line[1] : "";
+                    info.date = line.length > 2 ? line[2] : "";
+                    info.shortLink = line.length > 3 ? line[3] : "";
+                    info.note = line.length > 4 ? line[4] : "";
+                } else {
+                    info.customerId = line[0];
+                    info.username = line.length > 1 ? line[1] : "";
+                    // Additional customer fields can be added here
+                }
+                accounts.add(info);
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Failed to read account info from CSV: " + csvPath, e);
+        }
+        
+        return accounts;
     }
 }
