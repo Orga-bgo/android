@@ -78,12 +78,22 @@ public class AccountManagementActivity extends AppCompatActivity {
                 AccountManager.getAccountsEigenePath() : 
                 AccountManager.getAccountsKundenPath();
             
-            String sourceFile = basePath + accountName + "/WithBuddies.Services.User.0Production.dat";
+            // Check for ZIP file first (new format)
+            String zipFile = basePath + accountName + "/" + accountName + ".zip";
+            boolean success = false;
             
-            boolean success = AccountManager.restoreAccount(sourceFile);
+            if (new java.io.File(zipFile).exists()) {
+                // Use extended restore for ZIP archives
+                success = AccountManager.restoreAccountExtended(accountName);
+            } else {
+                // Fall back to old .dat file restore
+                String sourceFile = basePath + accountName + "/WithBuddies.Services.User.0Production.dat";
+                success = AccountManager.restoreAccount(sourceFile);
+            }
             
+            final boolean finalSuccess = success;
             runOnUiThread(() -> {
-                if (success) {
+                if (finalSuccess) {
                     tvStatus.setText("Account erfolgreich wiederhergestellt: " + accountName);
                     Toast.makeText(this, "Account wiederhergestellt", Toast.LENGTH_SHORT).show();
                     
@@ -107,23 +117,25 @@ public class AccountManagementActivity extends AppCompatActivity {
     
     private void showBackupOwnDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Eigenen Account sichern");
+        builder.setTitle("Eigenen Account sichern (Erweitert)");
         
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_backup_own, null);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_backup_extended, null);
         EditText etInternalId = dialogView.findViewById(R.id.et_internal_id);
         EditText etNote = dialogView.findViewById(R.id.et_note);
+        CheckBox cbIncludeFbToken = dialogView.findViewById(R.id.cb_include_fb_token);
         
         builder.setView(dialogView);
         builder.setPositiveButton("Sichern", (dialog, which) -> {
             String internalId = etInternalId.getText().toString().trim();
             String note = etNote.getText().toString().trim();
+            boolean includeFbToken = cbIncludeFbToken.isChecked();
             
             if (internalId.isEmpty()) {
                 Toast.makeText(this, "Interne ID ist erforderlich", Toast.LENGTH_SHORT).show();
                 return;
             }
             
-            backupOwnAccount(internalId, note);
+            backupOwnAccountExtended(internalId, note, includeFbToken);
         });
         builder.setNegativeButton("Abbrechen", null);
         builder.show();
@@ -173,6 +185,56 @@ public class AccountManagementActivity extends AppCompatActivity {
                                    "Shortlink: " + (finalShortLink != null ? finalShortLink : "Nicht verfügbar");
                     tvStatus.setText(message);
                     Toast.makeText(this, "Account erfolgreich gesichert", Toast.LENGTH_SHORT).show();
+                } else {
+                    tvStatus.setText("Fehler beim Sichern");
+                    Toast.makeText(this, "Fehler beim Sichern", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }).start();
+    }
+    
+    private void backupOwnAccountExtended(String internalId, String note, boolean includeFbToken) {
+        tvStatus.setText("Sichere Account (erweitert)...");
+        
+        new Thread(() -> {
+            // Extract UserID (optional - backup proceeds even if this fails)
+            String userId = DataExtractor.extractUserId();
+            String shortLink = null;
+            
+            if (userId == null) {
+                runOnUiThread(() -> {
+                    tvStatus.setText("Warnung: UserID konnte nicht extrahiert werden. Fortfahren mit Backup...");
+                    Toast.makeText(this, "UserID nicht gefunden - Backup wird trotzdem durchgeführt", Toast.LENGTH_LONG).show();
+                });
+            } else {
+                // Create short link only if UserID is available
+                shortLink = ShortLinkManager.createShortLink(userId, internalId);
+                if (shortLink == null) {
+                    runOnUiThread(() -> {
+                        tvStatus.setText("Warnung: Shortlink konnte nicht erstellt werden");
+                    });
+                }
+            }
+            
+            // Extended backup with ZIP archive
+            boolean success = AccountManager.backupAccountExtended(internalId, includeFbToken);
+            
+            if (success) {
+                // Save CSV metadata
+                saveAccountMetadata(internalId, userId, shortLink, note);
+            }
+            
+            final String finalShortLink = shortLink;
+            final String finalUserId = userId;
+            runOnUiThread(() -> {
+                if (success) {
+                    String message = "Account gesichert (ZIP)\n" +
+                                   "Interne ID: " + internalId + "\n" +
+                                   "UserID: " + (finalUserId != null ? finalUserId : "Nicht gefunden") + "\n" +
+                                   "Shortlink: " + (finalShortLink != null ? finalShortLink : "Nicht verfügbar") + "\n" +
+                                   "FB-Token: " + (includeFbToken ? "Gesichert" : "Nicht gesichert");
+                    tvStatus.setText(message);
+                    Toast.makeText(this, "Account erfolgreich als ZIP gesichert", Toast.LENGTH_SHORT).show();
                 } else {
                     tvStatus.setText("Fehler beim Sichern");
                     Toast.makeText(this, "Fehler beim Sichern", Toast.LENGTH_SHORT).show();
