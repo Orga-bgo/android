@@ -1,9 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Base application theme -->
-    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+    <!-- Base application theme - UPDATED to Material Components for MaterialButton support -->
+    <style name="AppTheme" parent="Theme.MaterialComponents.Light.DarkActionBar">
         <item name="colorPrimary">#2196F3</item>
         <item name="colorPrimaryDark">#1976D2</item>
         <item name="colorAccent">#FF5722</item>
+        
+        <!-- Material Design 3 Colors (optional) -->
+        <item name="colorPrimaryVariant">#1976D2</item>
+        <item name="colorOnPrimary">#FFFFFF</item>
+        <item name="colorSecondary">#FF5722</item>
+        <item name="colorSecondaryVariant">#E64A19</item>
+        <item name="colorOnSecondary">#FFFFFF</item>
     </style>
 </resources>
