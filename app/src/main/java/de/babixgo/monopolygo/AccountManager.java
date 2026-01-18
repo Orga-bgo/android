@@ -21,7 +21,7 @@ public class AccountManager {
     private static final String PARTNEREVENTS_PATH = BASE_PATH + "Partnerevents/";
     private static final String BACKUPS_PATH = BASE_PATH + "Backups/";
     
-    private static final String TEMP_PATH = "/storage/emulated/0/MonopolyGo/Temp/";
+    private static final String TEMP_PATH = "/data/local/tmp/";
     
     // MonopolyGo Dateipfade
     private static final String DATA_DIR = "/data/data/" + PACKAGE_NAME + "/";
@@ -55,7 +55,6 @@ public class AccountManager {
         new File(ACCOUNTS_KUNDEN).mkdirs();
         new File(PARTNEREVENTS_PATH).mkdirs();
         new File(BACKUPS_PATH).mkdirs();
-        new File(TEMP_PATH).mkdirs();
     }
     
     /**
@@ -231,7 +230,10 @@ public class AccountManager {
         Log.d("BabixGO", "Temp-Verzeichnis erstellt: " + tempDirFile.exists());
         
         // 4. REQUIRED FILE prüfen
-        if (!ZipManager.fileExistsWithRoot(REQUIRED_FILE)) {
+        String checkCommand = "[ -f " + escapeShellArg(REQUIRED_FILE) + " ] && echo 'exists' || echo 'not found'";
+        String checkResult = RootManager.runRootCommand(checkCommand);
+        
+        if (!checkResult.contains("exists")) {
             Log.e("BabixGO", "FEHLER: Required File nicht gefunden: " + REQUIRED_FILE);
             deleteRecursive(tempDirFile);
             return false;
@@ -240,13 +242,13 @@ public class AccountManager {
         Log.d("BabixGO", "Required File gefunden, kopiere...");
         
         // 5. REQUIRED FILE kopieren
-        boolean success = ZipManager.copyFileWithRoot(
-            REQUIRED_FILE, 
-            tempDir + "account.dat"
-        );
+        String cpCommand = "cp " + escapeShellArg(REQUIRED_FILE) + " " + escapeShellArg(tempDir + "account.dat");
+        String cpResult = RootManager.runRootCommand(cpCommand);
+        
+        boolean success = new File(tempDir + "account.dat").exists() && new File(tempDir + "account.dat").length() > 0;
         
         if (!success) {
-            Log.e("BabixGO", "FEHLER: Kopieren der Account-Datei fehlgeschlagen!");
+            Log.e("BabixGO", "FEHLER: Kopieren der Account-Datei fehlgeschlagen: " + cpResult);
             deleteRecursive(tempDirFile);
             return false;
         }
@@ -259,12 +261,17 @@ public class AccountManager {
         
         for (int i = 0; i < OPTIONAL_FILES.length; i++) {
             String sourceFile = OPTIONAL_FILES[i];
-            if (ZipManager.fileExistsWithRoot(sourceFile)) {
+            
+            // Check if file exists
+            String fileCheckCommand = "[ -f " + escapeShellArg(sourceFile) + " ] && echo 'exists' || echo 'not found'";
+            String fileCheckResult = RootManager.runRootCommand(fileCheckCommand);
+            
+            if (fileCheckResult.contains("exists")) {
                 String fileName = getFileName(sourceFile, i);
-                boolean copied = ZipManager.copyFileWithRoot(
-                    sourceFile, 
-                    tempDir + fileName
-                );
+                String fileCpCommand = "cp " + escapeShellArg(sourceFile) + " " + escapeShellArg(tempDir + fileName);
+                String fileCpResult = RootManager.runRootCommand(fileCpCommand);
+                
+                boolean copied = new File(tempDir + fileName).exists();
                 
                 if (copied) {
                     copiedFiles.add(fileName);
@@ -274,15 +281,20 @@ public class AccountManager {
         }
         
         // 7. FB-Token kopieren (falls gewünscht)
-        if (includeFbToken && ZipManager.fileExistsWithRoot(FB_TOKEN_FILE)) {
-            boolean copied = ZipManager.copyFileWithRoot(
-                FB_TOKEN_FILE, 
-                tempDir + "fb_token.xml"
-            );
+        if (includeFbToken) {
+            String fbCheckCommand = "[ -f " + escapeShellArg(FB_TOKEN_FILE) + " ] && echo 'exists' || echo 'not found'";
+            String fbCheckResult = RootManager.runRootCommand(fbCheckCommand);
             
-            if (copied) {
-                copiedFiles.add("fb_token.xml");
-                Log.d("BabixGO", "FB-Token kopiert");
+            if (fbCheckResult.contains("exists")) {
+                String fbCpCommand = "cp " + escapeShellArg(FB_TOKEN_FILE) + " " + escapeShellArg(tempDir + "fb_token.xml");
+                String fbCpResult = RootManager.runRootCommand(fbCpCommand);
+                
+                boolean copied = new File(tempDir + "fb_token.xml").exists();
+                
+                if (copied) {
+                    copiedFiles.add("fb_token.xml");
+                    Log.d("BabixGO", "FB-Token kopiert");
+                }
             }
         }
         
@@ -294,12 +306,15 @@ public class AccountManager {
         
         Log.d("BabixGO", "Erstelle ZIP...");
         
-        // 10. ZIP erstellen (Java-basiert, kein externes Tool)
+        // 10. ZIP erstellen (shell command)
         String zipFile = TEMP_PATH + accountName + ".zip";
-        boolean zipSuccess = ZipManager.zipDirectory(tempDir, zipFile);
+        String zipCommand = "cd " + escapeShellArg(tempDir) + " && zip -r " + escapeShellArg(zipFile) + " . 2>&1";
+        String zipResult = RootManager.runRootCommand(zipCommand);
+        
+        boolean zipSuccess = new File(zipFile).exists() && new File(zipFile).length() > 0;
         
         if (!zipSuccess) {
-            Log.e("BabixGO", "FEHLER: ZIP-Erstellung fehlgeschlagen!");
+            Log.e("BabixGO", "FEHLER: ZIP-Erstellung fehlgeschlagen: " + zipResult);
             deleteRecursive(tempDirFile);
             return false;
         }
@@ -380,8 +395,11 @@ public class AccountManager {
         
         tempDirFile.mkdirs();
         
-        // 4. ZIP entpacken (Java-basiert)
-        boolean unzipSuccess = ZipManager.unzipArchive(zipPath, tempDir);
+        // 4. ZIP entpacken (shell command)
+        String unzipCommand = "unzip -o " + escapeShellArg(zipPath) + " -d " + escapeShellArg(tempDir) + " 2>&1";
+        String unzipResult = RootManager.runRootCommand(unzipCommand);
+        
+        boolean unzipSuccess = new File(tempDir + "account.dat").exists();
         
         if (!unzipSuccess) {
             deleteRecursive(tempDirFile);
@@ -394,10 +412,9 @@ public class AccountManager {
         // Required file
         File accountDatFile = new File(tempDir + "account.dat");
         if (accountDatFile.exists()) {
-            success = ZipManager.copyFileWithRoot(
-                tempDir + "account.dat",
-                REQUIRED_FILE
-            );
+            String cpCommand = "cp " + escapeShellArg(tempDir + "account.dat") + " " + escapeShellArg(REQUIRED_FILE);
+            String cpResult = RootManager.runRootCommand(cpCommand);
+            success = !cpResult.contains("Error") && !cpResult.contains("cannot");
         } else {
             success = false;
         }
@@ -520,14 +537,16 @@ public class AccountManager {
         };
         
         for (String[] mapping : fileMappings) {
-            File sourceFile = new File(tempDir + mapping[0]);
+            String sourceFile = tempDir + mapping[0];
             String targetFile = mapping[1];
             
-            if (sourceFile.exists()) {
-                ZipManager.copyFileWithRoot(
-                    sourceFile.getAbsolutePath(),
-                    targetFile
-                );
+            // Check if source file exists using shell command
+            String checkCommand = "[ -f " + escapeShellArg(sourceFile) + " ] && echo 'exists' || echo 'not found'";
+            String checkResult = RootManager.runRootCommand(checkCommand);
+            
+            if (checkResult.contains("exists")) {
+                String cpCommand = "cp " + escapeShellArg(sourceFile) + " " + escapeShellArg(targetFile);
+                RootManager.runRootCommand(cpCommand);
             }
         }
     }
@@ -647,12 +666,15 @@ public class AccountManager {
         
         android.util.Log.d("BabixGO", "Erstelle ZIP...");
         
-        // 8. ZIP erstellen
+        // 8. ZIP erstellen (shell command)
         String zipFile = TEMP_PATH + accountName + ".zip";
-        boolean zipSuccess = ZipManager.zipDirectory(tempDir, zipFile);
+        String zipCommand = "cd " + escapeShellArg(tempDir) + " && zip -r " + escapeShellArg(zipFile) + " . 2>&1";
+        String zipResult = RootManager.runRootCommand(zipCommand);
+        
+        boolean zipSuccess = new File(zipFile).exists() && new File(zipFile).length() > 0;
         
         if (!zipSuccess) {
-            android.util.Log.e("BabixGO", "ZIP-Erstellung fehlgeschlagen");
+            android.util.Log.e("BabixGO", "ZIP-Erstellung fehlgeschlagen: " + zipResult);
             deleteRecursive(tempDirFile);
             return false;
         }
