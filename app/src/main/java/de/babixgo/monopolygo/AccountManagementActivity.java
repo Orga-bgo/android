@@ -20,8 +20,9 @@ import java.util.Locale;
  */
 public class AccountManagementActivity extends AppCompatActivity {
     
-    private MaterialButton btnRestore, btnBackup, btnDelete, btnEdit;
+    private MaterialButton btnRestore, btnBackup, btnDelete, btnEdit, btnSettings;
     private TextView tvAccountCount, tvSecurityStatus;
+    private SettingsManager settingsManager;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -36,17 +37,21 @@ public class AccountManagementActivity extends AppCompatActivity {
             btnBackup = findViewById(R.id.btn_backup_account);
             btnDelete = findViewById(R.id.btn_delete_account);
             btnEdit = findViewById(R.id.btn_edit_account);
+            btnSettings = findViewById(R.id.btn_settings);
             tvAccountCount = findViewById(R.id.tv_account_count);
             tvSecurityStatus = findViewById(R.id.tv_security_status);
             
             // Null-Checks
             if (btnRestore == null || btnBackup == null || btnDelete == null || 
-                btnEdit == null || tvAccountCount == null || tvSecurityStatus == null) {
+                btnEdit == null || btnSettings == null || tvAccountCount == null || tvSecurityStatus == null) {
                 Toast.makeText(this, "Layout-Fehler: Views nicht gefunden", 
                     Toast.LENGTH_LONG).show();
                 finish();
                 return;
             }
+            
+            // Initialize SettingsManager
+            settingsManager = new SettingsManager(this);
             
             // WICHTIG: Root-Zugriff sicherstellen BEVOR UI initialisiert wird
             // Auf Android 10+ kann der Root-Dialog länger dauern
@@ -117,6 +122,7 @@ public class AccountManagementActivity extends AppCompatActivity {
         btnBackup.setOnClickListener(v -> showBackupDialog());
         btnDelete.setOnClickListener(v -> showDeleteDialog());
         btnEdit.setOnClickListener(v -> showEditDialog());
+        btnSettings.setOnClickListener(v -> showSettingsDialog());
     }
     
     private void updateAccountCount() {
@@ -236,6 +242,10 @@ public class AccountManagementActivity extends AppCompatActivity {
     }
     
     private void backupAccount(String internalId, String note, boolean includeFbToken) {
+        // Apply name prefix
+        String prefix = settingsManager.getNamePrefix();
+        String accountName = prefix + internalId;
+        
         AlertDialog progressDialog = new AlertDialog.Builder(this)
             .setTitle("Sichern...")
             .setMessage("Bitte warten...")
@@ -244,11 +254,11 @@ public class AccountManagementActivity extends AppCompatActivity {
         progressDialog.show();
         
         new Thread(() -> {
-            // NUTZE SIMPLE VERSION
-            boolean success = AccountManager.backupAccountSimple(internalId, includeFbToken);
+            // NUTZE SIMPLE VERSION with name prefix applied
+            boolean success = AccountManager.backupAccountSimple(accountName, includeFbToken);
             
             if (success) {
-                saveMetadata(internalId, note, includeFbToken);
+                saveMetadata(accountName, note, includeFbToken);
             }
             
             runOnUiThread(() -> {
@@ -256,7 +266,7 @@ public class AccountManagementActivity extends AppCompatActivity {
                 
                 if (success) {
                     String message = "✅ Account gesichert!\n\n" +
-                                   "📝 ID: " + internalId + "\n" +
+                                   "📝 Name: " + accountName + "\n" +
                                    "📅 " + getCurrentDate() + "\n" +
                                    "🔐 FB-Token: " + (includeFbToken ? "✓" : "✗");
                     
@@ -285,7 +295,7 @@ public class AccountManagementActivity extends AppCompatActivity {
             
             try (FileWriter fw = new FileWriter(csvFile, true)) {
                 if (writeHeader) {
-                    fw.write("InterneID,Datum,FBToken,Notiz\n");
+                    fw.write("Name,Datum,FBToken,Notiz\n");
                 }
                 
                 String date = getCurrentDate();
@@ -339,6 +349,56 @@ public class AccountManagementActivity extends AppCompatActivity {
     
     private void showEditDialog() {
         Toast.makeText(this, "🚧 Funktion in Entwicklung", Toast.LENGTH_SHORT).show();
+    }
+    
+    /**
+     * Show settings dialog for configuring paths and name prefix.
+     */
+    private void showSettingsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(R.string.settings);
+        
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_settings, null);
+        EditText etBackupPath = dialogView.findViewById(R.id.et_backup_output_path);
+        EditText etRestorePath = dialogView.findViewById(R.id.et_restore_input_path);
+        EditText etPrefix = dialogView.findViewById(R.id.et_name_prefix);
+        
+        // Aktuelle Werte laden
+        etBackupPath.setText(settingsManager.getBackupOutputPath());
+        etRestorePath.setText(settingsManager.getRestoreInputPath());
+        etPrefix.setText(settingsManager.getNamePrefix());
+        
+        builder.setView(dialogView);
+        builder.setPositiveButton("Speichern", (dialog, which) -> {
+            String backupPath = etBackupPath.getText().toString().trim();
+            String restorePath = etRestorePath.getText().toString().trim();
+            String prefix = etPrefix.getText().toString().trim();
+            
+            // Pfade validieren (sollten mit / enden)
+            backupPath = ensureTrailingSlash(backupPath);
+            restorePath = ensureTrailingSlash(restorePath);
+            
+            // Einstellungen speichern
+            settingsManager.setBackupOutputPath(backupPath);
+            settingsManager.setRestoreInputPath(restorePath);
+            settingsManager.setNamePrefix(prefix);
+            
+            Toast.makeText(this, R.string.settings_saved, Toast.LENGTH_SHORT).show();
+        });
+        builder.setNegativeButton("Abbrechen", null);
+        builder.show();
+    }
+    
+    /**
+     * Ensure that a path ends with a trailing slash.
+     * @param path The path to validate
+     * @return The path with a trailing slash, or empty string if input was empty
+     */
+    private String ensureTrailingSlash(String path) {
+        if (!path.isEmpty() && !path.endsWith("/")) {
+            return path + "/";
+        }
+        return path;
     }
     
     /**
