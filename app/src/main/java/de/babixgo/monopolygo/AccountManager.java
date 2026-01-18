@@ -609,7 +609,59 @@ public class AccountManager {
         );
         return result.contains("exists");
     }
-    
+
+    /**
+     * Find the account file for backup by checking multiple possible locations.
+     * Returns the path to the file if found, null otherwise.
+     */
+    private static String findAccountFileForBackup() {
+        // Try standard location first (where restore writes to)
+        Log.d(TAG, "Checking standard location: " + REQUIRED_FILE);
+        String checkCommand = "[ -f " + escapeShellArg(REQUIRED_FILE) + " ] && echo 'exists' || echo 'not found'";
+        String checkResult = RootManager.runRootCommand(checkCommand);
+
+        if (checkResult.contains("exists")) {
+            return REQUIRED_FILE;
+        }
+
+        // Try alternative known locations
+        String[] alternativePaths = {
+            DATA_DIR + "files/WithBuddies.Services.User.0Production.dat",
+            "/data/user/0/" + PACKAGE_NAME + "/files/DiskBasedCacheDirectory/WithBuddies.Services.User.0Production.dat",
+            "/data/user/0/" + PACKAGE_NAME + "/files/WithBuddies.Services.User.0Production.dat"
+        };
+
+        for (String altPath : alternativePaths) {
+            Log.d(TAG, "Checking alternative location: " + altPath);
+            checkCommand = "[ -f " + escapeShellArg(altPath) + " ] && echo 'exists' || echo 'not found'";
+            checkResult = RootManager.runRootCommand(checkCommand);
+
+            if (checkResult.contains("exists")) {
+                return altPath;
+            }
+        }
+
+        // Last resort: use find command to search for the file
+        Log.d(TAG, "Searching for file with find command");
+        String findCommand = "find " + escapeShellArg(DATA_DIR) + " -name '*WithBuddies.Services.User*.dat' 2>/dev/null | head -n 1";
+        String findResult = RootManager.runRootCommand(findCommand);
+
+        if (findResult != null && !findResult.trim().isEmpty() &&
+            !findResult.contains("Error") && !findResult.contains("not found")) {
+            String foundPath = findResult.trim();
+            Log.d(TAG, "Found file via find command: " + foundPath);
+            // Verify it actually exists
+            checkCommand = "[ -f " + escapeShellArg(foundPath) + " ] && echo 'exists' || echo 'not found'";
+            checkResult = RootManager.runRootCommand(checkCommand);
+            if (checkResult.contains("exists")) {
+                return foundPath;
+            }
+        }
+
+        Log.e(TAG, "Account file not found in any location");
+        return null;
+    }
+
     /**
      * Backup Account - Mirrors restoreAccountExtended in reverse order
      * Uses same tests, commands, and variables as restore
@@ -620,50 +672,61 @@ public class AccountManager {
             Log.e(TAG, "Invalid account name: " + accountName);
             return false;
         }
-        
+
         // 1. App stoppen (same as restore step 1)
         forceStopApp();
-        
+
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
             Log.e(TAG, "Sleep interrupted during backup", e);
         }
-        
+
         // 2. Zielverzeichnis erstellen (reverse of restore step 6 cleanup)
         String targetDir = ACCOUNTS_EIGENE + accountName + "/";
         File target = new File(targetDir);
         if (!target.exists()) {
             target.mkdirs();
         }
-        
+
         // Define final ZIP path (reverse of restore step 2)
         String zipPath = targetDir + accountName + ".zip";
         File zipFile = new File(zipPath);
-        
+
         // 3. Temporäres Verzeichnis erstellen (same as restore step 3)
         String tempDir = TEMP_PATH + accountName + "_backup/";
         File tempDirFile = new File(tempDir);
-        
+
         // Altes Temp-Verzeichnis löschen falls vorhanden (same as restore)
         if (tempDirFile.exists()) {
             deleteRecursive(tempDirFile);
         }
-        
+
         tempDirFile.mkdirs();
-        
-        // 4. Dateien kopieren (reverse of restore step 5)
+
+        // 4. Find the account file - check if exists and search if needed
+        String accountFilePath = findAccountFileForBackup();
+        if (accountFilePath == null) {
+            Log.e(TAG, "Account file not found - game may not have been run yet");
+            deleteRecursive(tempDirFile);
+            return false;
+        }
+
+        Log.d(TAG, "Found account file at: " + accountFilePath);
+
+        // 5. Dateien kopieren (reverse of restore step 5)
         boolean success = true;
-        
+
         // Required file (reverse of restore)
-        String cpCommand = "cp " + escapeShellArg(REQUIRED_FILE) + " " + escapeShellArg(tempDir + "account.dat");
+        String cpCommand = "cp " + escapeShellArg(accountFilePath) + " " + escapeShellArg(tempDir + "account.dat");
         String cpResult = RootManager.runRootCommand(cpCommand);
-        
+
         // Check if copy succeeded (same test as restore)
         boolean copySuccess = new File(tempDir + "account.dat").exists();
         success = copySuccess && !cpResult.contains("Error") && !cpResult.contains("cannot");
-        
+
         if (!copySuccess) {
+            Log.e(TAG, "Failed to copy account file. Command output: " + cpResult);
             deleteRecursive(tempDirFile);
             return false;
         }
