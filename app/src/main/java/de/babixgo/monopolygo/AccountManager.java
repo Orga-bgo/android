@@ -359,6 +359,7 @@ public class AccountManager {
     
     /**
      * Erweiterte Restore-Funktion für ZIP-Archive
+     * Uses user-accessible storage for temp directory (no /data/local/tmp/ permission issues)
      */
     public static boolean restoreAccountExtended(String accountName) {
         // Validate accountName to prevent command injection
@@ -366,83 +367,88 @@ public class AccountManager {
             Log.e(TAG, "Invalid account name: " + accountName);
             return false;
         }
-        
+
+        Log.d(TAG, "=== RESTORE START ===");
+        Log.d(TAG, "Account: " + accountName);
+
         // 1. App stoppen
         forceStopApp();
-        
+
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
             Log.e(TAG, "Sleep interrupted during restore", e);
         }
-        
+
         // 2. ZIP-Pfad finden
         String zipPath = ACCOUNTS_EIGENE + accountName + "/" + accountName + ".zip";
         File zipFile = new File(zipPath);
-        
+
         if (!zipFile.exists()) {
+            Log.e(TAG, "ZIP file not found: " + zipPath);
             return false;
         }
-        
-        // 3. Temporäres Verzeichnis erstellen
-        String tempDir = TEMP_PATH + accountName + "_restore/";
+
+        Log.d(TAG, "Found ZIP file: " + zipPath);
+
+        // 3. Temporäres Verzeichnis in user storage erstellen (no permission issues)
+        String tempDir = ACCOUNTS_EIGENE + accountName + "/temp/";
         File tempDirFile = new File(tempDir);
 
-        // Altes Temp-Verzeichnis löschen falls vorhanden (use root)
+        // Altes Temp-Verzeichnis löschen falls vorhanden
         if (tempDirFile.exists()) {
             Log.d(TAG, "Deleting old temp directory: " + tempDir);
-            RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
+            deleteRecursive(tempDirFile);
         }
 
-        // Create temp directory with ROOT (required for /data/local/tmp/)
-        Log.d(TAG, "Creating temp directory with root: " + tempDir);
-        String mkdirCommand = "mkdir -p " + escapeShellArg(tempDir);
-        RootManager.runRootCommand(mkdirCommand);
+        // Create temp directory with Java (no root needed)
+        tempDirFile.mkdirs();
+        Log.d(TAG, "Temp directory created: " + tempDir);
 
-        // Verify directory was created
-        String verifyCommand = "[ -d " + escapeShellArg(tempDir) + " ] && echo 'exists' || echo 'not found'";
-        String verifyResult = RootManager.runRootCommand(verifyCommand);
-
-        if (!verifyResult.contains("exists")) {
-            Log.e(TAG, "Failed to create temp directory: " + tempDir);
-            return false;
-        }
-
-        Log.d(TAG, "Temp directory created successfully: " + tempDir);
-
-        // 4. ZIP entpacken - use Java implementation (no external unzip binary needed)
-        Log.d(TAG, "Extracting ZIP archive: " + zipPath);
+        // 4. ZIP entpacken - use Java implementation
+        Log.d(TAG, "Extracting ZIP archive...");
         boolean unzipSuccess = ZipManager.unzipArchive(zipPath, tempDir);
 
         if (!unzipSuccess) {
             Log.e(TAG, "Failed to extract ZIP archive");
-            RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
+            deleteRecursive(tempDirFile);
             return false;
         }
-        
-        // 5. Dateien zurückkopieren
+
+        Log.d(TAG, "ZIP extracted successfully");
+
+        // 5. Dateien zurückkopieren mit Root
         boolean success = true;
-        
+
         // Required file
         File accountDatFile = new File(tempDir + "account.dat");
         if (accountDatFile.exists()) {
+            Log.d(TAG, "Copying account.dat to app directory...");
             String cpCommand = "cp " + escapeShellArg(tempDir + "account.dat") + " " + escapeShellArg(REQUIRED_FILE);
             String cpResult = RootManager.runRootCommand(cpCommand);
             success = !cpResult.contains("Error") && !cpResult.contains("cannot");
+
+            if (success) {
+                Log.d(TAG, "Account file restored successfully");
+            } else {
+                Log.e(TAG, "Failed to restore account file: " + cpResult);
+            }
         } else {
+            Log.e(TAG, "account.dat not found in ZIP");
             success = false;
         }
-        
+
         // Optionale Dateien
         if (success) {
             restoreOptionalFiles(tempDir);
             setProperPermissions();
         }
 
-        // 6. Aufräumen - use root to delete
+        // 6. Aufräumen - use Java (no root needed)
         Log.d(TAG, "Cleaning up temp directory");
-        RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
+        deleteRecursive(tempDirFile);
 
+        Log.d(TAG, success ? "=== RESTORE COMPLETE ===" : "=== RESTORE FAILED ===");
         return success;
     }
     
