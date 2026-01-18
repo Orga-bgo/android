@@ -48,6 +48,10 @@ public class AccountManagementActivity extends AppCompatActivity {
                 return;
             }
             
+            // WICHTIG: Root-Zugriff sicherstellen BEVOR UI initialisiert wird
+            // Auf Android 10+ kann der Root-Dialog länger dauern
+            ensureRootAccess();
+            
             updateAccountCount();
             setupButtons();
             
@@ -56,6 +60,41 @@ public class AccountManagementActivity extends AppCompatActivity {
                 Toast.LENGTH_LONG).show();
             e.printStackTrace();
             finish();
+        }
+    }
+    
+    /**
+     * Ensure root access is granted before any operations.
+     * This fixes timing issues on Android 10+ where root dialog appears slower.
+     */
+    private void ensureRootAccess() {
+        // If root already granted, we're done
+        if (RootManager.hasRootAccess()) {
+            updateSecurityStatus(true);
+            return;
+        }
+        
+        // Request root access synchronously
+        new Thread(() -> {
+            boolean hasRoot = RootManager.requestRoot();
+            runOnUiThread(() -> {
+                updateSecurityStatus(hasRoot);
+                if (!hasRoot) {
+                    Toast.makeText(this, 
+                        "⚠️ Root-Zugriff erforderlich für Account-Operationen", 
+                        Toast.LENGTH_LONG).show();
+                }
+            });
+        }).start();
+    }
+    
+    /**
+     * Update security status display
+     */
+    private void updateSecurityStatus(boolean rootGranted) {
+        if (tvSecurityStatus != null) {
+            tvSecurityStatus.setText("Sicherheitsstatus:\n" + 
+                (rootGranted ? "Aktiv" : "Inaktiv"));
         }
     }
     
@@ -73,8 +112,7 @@ public class AccountManagementActivity extends AppCompatActivity {
             tvAccountCount.setText(count + " Accounts\nvorhanden");
             
             boolean rootGranted = RootManager.hasRootAccess();
-            tvSecurityStatus.setText("Sicherheitsstatus:\n" + 
-                (rootGranted ? "Aktiv" : "Inaktiv"));
+            updateSecurityStatus(rootGranted);
         } catch (Exception e) {
             tvAccountCount.setText("Fehler beim Laden");
             tvSecurityStatus.setText("Status: Unbekannt");
@@ -83,6 +121,11 @@ public class AccountManagementActivity extends AppCompatActivity {
     }
     
     private void showRestoreDialog() {
+        // Check root access before showing dialog
+        if (!checkRootAccessWithPrompt()) {
+            return;
+        }
+        
         try {
             String[] accounts = AccountManager.getBackedUpAccounts(true);
             
@@ -142,6 +185,11 @@ public class AccountManagementActivity extends AppCompatActivity {
     }
     
     private void showBackupDialog() {
+        // Check root access before showing dialog
+        if (!checkRootAccessWithPrompt()) {
+            return;
+        }
+        
         try {
             View dialogView = getLayoutInflater().inflate(R.layout.dialog_backup_extended, null);
             EditText etInternalId = dialogView.findViewById(R.id.et_internal_id);
@@ -277,5 +325,40 @@ public class AccountManagementActivity extends AppCompatActivity {
     
     private void showEditDialog() {
         Toast.makeText(this, "🚧 Funktion in Entwicklung", Toast.LENGTH_SHORT).show();
+    }
+    
+    /**
+     * Check if root access is granted and prompt user if not.
+     * This prevents operations from failing silently on newer Android versions.
+     * @return true if root is granted, false otherwise
+     */
+    private boolean checkRootAccessWithPrompt() {
+        if (!RootManager.hasRootAccess()) {
+            new AlertDialog.Builder(this)
+                .setTitle("Root-Zugriff erforderlich")
+                .setMessage("Bitte gewähren Sie Root-Zugriff für diese Operation.\n\n" +
+                           "Die App wird Root-Zugriff anfordern.")
+                .setPositiveButton("Weiter", (dialog, which) -> {
+                    // Request root in background
+                    new Thread(() -> {
+                        boolean granted = RootManager.requestRoot();
+                        runOnUiThread(() -> {
+                            updateSecurityStatus(granted);
+                            if (granted) {
+                                Toast.makeText(this, "✅ Root-Zugriff gewährt", 
+                                    Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(this, 
+                                    "❌ Root-Zugriff verweigert - Operation nicht möglich", 
+                                    Toast.LENGTH_LONG).show();
+                            }
+                        });
+                    }).start();
+                })
+                .setNegativeButton("Abbrechen", null)
+                .show();
+            return false;
+        }
+        return true;
     }
 }
