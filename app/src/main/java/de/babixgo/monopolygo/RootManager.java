@@ -204,7 +204,16 @@ public class RootManager {
 
     /**
      * Helper method: Escape shell argument to prevent injection
-     * Uses single quotes and escapes any single quotes in the argument
+     * Uses single quotes and escapes any single quotes in the argument.
+     * This is the standard POSIX shell escaping technique.
+     * 
+     * Example transformations:
+     * - "test" -> "'test'"
+     * - "test's file" -> "'test'\''s file'"
+     * - null -> "''"
+     * 
+     * @param arg The argument to escape
+     * @return The escaped argument safe for shell execution
      */
     public static String escapeShellArg(String arg) {
         if (arg == null) {
@@ -259,12 +268,25 @@ public class RootManager {
     /**
      * Delete a directory with root privileges.
      * This is necessary for directories created with root that cannot be deleted by the app.
+     * For safety, this only works on paths under /data/local/tmp/
      * @param path The directory path to delete
      * @return true if successful, false otherwise
      */
     public static boolean deleteDirectoryWithRoot(String path) {
         if (path == null || path.isEmpty()) {
             android.util.Log.e("BabixGO", "Invalid path for directory deletion");
+            return false;
+        }
+        
+        // Safety check: only allow deletion of directories under /data/local/tmp/
+        if (!path.startsWith("/data/local/tmp/")) {
+            android.util.Log.e("BabixGO", "deleteDirectoryWithRoot only works on /data/local/tmp/ paths for safety");
+            return false;
+        }
+        
+        // Additional safety: ensure we're not deleting the base tmp directory itself
+        if (path.equals("/data/local/tmp") || path.equals("/data/local/tmp/")) {
+            android.util.Log.e("BabixGO", "Cannot delete the base /data/local/tmp directory");
             return false;
         }
         

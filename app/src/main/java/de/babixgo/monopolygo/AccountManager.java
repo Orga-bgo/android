@@ -507,18 +507,23 @@ public class AccountManager {
     private static boolean ensureTempDirectory(String tempDir) {
         File tempDirFile = new File(tempDir);
         
-        // If directory already exists and is writable, we're done
-        if (tempDirFile.exists() && tempDirFile.canWrite()) {
-            Log.d("BabixGO", "Temp directory already exists and is writable: " + tempDir);
-            return true;
-        }
-        
-        // Delete old directory if it exists but is not writable (likely created with root)
+        // If directory exists, try to verify it's usable by testing file creation
         if (tempDirFile.exists()) {
+            File testFile = new File(tempDir, ".test_write");
+            try {
+                if (testFile.createNewFile()) {
+                    testFile.delete();
+                    Log.d("BabixGO", "Temp directory already exists and is writable: " + tempDir);
+                    return true;
+                }
+            } catch (Exception e) {
+                Log.d("BabixGO", "Temp directory exists but is not writable, will recreate: " + tempDir);
+            }
+            
+            // Directory exists but is not writable, delete and recreate
             Log.d("BabixGO", "Removing old temp directory with root: " + tempDir);
             if (!RootManager.deleteDirectoryWithRoot(tempDir)) {
-                Log.e("BabixGO", "Failed to delete old temp directory: " + tempDir);
-                // Try to continue anyway, mkdir -p should handle it
+                Log.w("BabixGO", "Failed to delete old temp directory, mkdir -p should handle it");
             }
         }
         
@@ -531,13 +536,26 @@ public class AccountManager {
             return false;
         }
         
-        // Verify directory was created
+        // Verify directory was created and is usable
         if (!tempDirFile.exists()) {
             Log.e("BabixGO", "Temp directory does not exist after creation: " + tempDir);
             return false;
         }
         
-        Log.d("BabixGO", "Temp directory created successfully: " + tempDir);
+        // Verify we can actually write to it
+        File testFile = new File(tempDir, ".test_write");
+        try {
+            if (!testFile.createNewFile()) {
+                Log.e("BabixGO", "Temp directory created but cannot write to it: " + tempDir);
+                return false;
+            }
+            testFile.delete();
+        } catch (Exception e) {
+            Log.e("BabixGO", "Temp directory created but test write failed: " + e.getMessage());
+            return false;
+        }
+        
+        Log.d("BabixGO", "Temp directory created successfully and is writable: " + tempDir);
         return true;
     }
     
