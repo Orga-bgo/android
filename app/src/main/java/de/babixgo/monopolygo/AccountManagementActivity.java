@@ -74,17 +74,31 @@ public class AccountManagementActivity extends AppCompatActivity {
             return;
         }
         
-        // Request root access synchronously
+        // Request root access in background
+        requestRootInBackground(false);
+    }
+    
+    /**
+     * Request root access in background thread with proper lifecycle management.
+     * @param showSuccessMessage whether to show success toast on grant
+     */
+    private void requestRootInBackground(boolean showSuccessMessage) {
         new Thread(() -> {
             boolean hasRoot = RootManager.requestRoot();
-            runOnUiThread(() -> {
-                updateSecurityStatus(hasRoot);
-                if (!hasRoot) {
-                    Toast.makeText(this, 
-                        "⚠️ Root-Zugriff erforderlich für Account-Operationen", 
-                        Toast.LENGTH_LONG).show();
-                }
-            });
+            // Check if activity is still alive before updating UI
+            if (!isFinishing() && !isDestroyed()) {
+                runOnUiThread(() -> {
+                    updateSecurityStatus(hasRoot);
+                    if (!hasRoot) {
+                        Toast.makeText(this, 
+                            "⚠️ Root-Zugriff erforderlich für Account-Operationen", 
+                            Toast.LENGTH_LONG).show();
+                    } else if (showSuccessMessage) {
+                        Toast.makeText(this, "✅ Root-Zugriff gewährt", 
+                            Toast.LENGTH_SHORT).show();
+                    }
+                });
+            }
         }).start();
     }
     
@@ -339,21 +353,8 @@ public class AccountManagementActivity extends AppCompatActivity {
                 .setMessage("Bitte gewähren Sie Root-Zugriff für diese Operation.\n\n" +
                            "Die App wird Root-Zugriff anfordern.")
                 .setPositiveButton("Weiter", (dialog, which) -> {
-                    // Request root in background
-                    new Thread(() -> {
-                        boolean granted = RootManager.requestRoot();
-                        runOnUiThread(() -> {
-                            updateSecurityStatus(granted);
-                            if (granted) {
-                                Toast.makeText(this, "✅ Root-Zugriff gewährt", 
-                                    Toast.LENGTH_SHORT).show();
-                            } else {
-                                Toast.makeText(this, 
-                                    "❌ Root-Zugriff verweigert - Operation nicht möglich", 
-                                    Toast.LENGTH_LONG).show();
-                            }
-                        });
-                    }).start();
+                    // Request root using common method
+                    requestRootInBackground(true);
                 })
                 .setNegativeButton("Abbrechen", null)
                 .show();
