@@ -545,6 +545,182 @@ public class AccountManager {
     }
     
     /**
+     * Backup Account - VEREINFACHTE VERSION (wie Original)
+     * Keine komplexen Prüfungen, einfach kopieren
+     */
+    public static boolean backupAccountSimple(String accountName, boolean includeFbToken) {
+        android.util.Log.d("BabixGO", "=== BACKUP START (Simple) ===");
+        android.util.Log.d("BabixGO", "Account: " + accountName);
+        android.util.Log.d("BabixGO", "FB-Token: " + includeFbToken);
+        
+        // 1. App stoppen
+        forceStopApp();
+        
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        
+        // 2. Temp-Verzeichnis erstellen
+        String tempDir = TEMP_PATH + accountName + "/";
+        File tempDirFile = new File(tempDir);
+        
+        if (tempDirFile.exists()) {
+            deleteRecursive(tempDirFile);
+        }
+        
+        if (!tempDirFile.mkdirs()) {
+            android.util.Log.e("BabixGO", "Temp-Verzeichnis konnte nicht erstellt werden");
+            return false;
+        }
+        
+        android.util.Log.d("BabixGO", "Temp-Dir: " + tempDir);
+        
+        // 3. Finde Account-Datei
+        String accountFile = findAccountFile();
+        if (accountFile == null) {
+            android.util.Log.e("BabixGO", "Account-Datei nicht gefunden");
+            deleteRecursive(tempDirFile);
+            return false;
+        }
+        
+        android.util.Log.d("BabixGO", "Account-Datei: " + accountFile);
+        
+        // 4. Kopiere Account-Datei - SIMPEL wie Original
+        String destFile = tempDir + "account.dat";
+        String command = "cp '" + accountFile + "' '" + destFile + "'";
+        
+        android.util.Log.d("BabixGO", "Executing: " + command);
+        String result = RootManager.runRootCommand(command);
+        android.util.Log.d("BabixGO", "Result: " + result);
+        
+        // Prüfe ob kopiert (kein fileExists, direkter File-Check)
+        File copiedFile = new File(destFile);
+        if (!copiedFile.exists() || copiedFile.length() == 0) {
+            android.util.Log.e("BabixGO", "Kopieren fehlgeschlagen");
+            deleteRecursive(tempDirFile);
+            return false;
+        }
+        
+        android.util.Log.d("BabixGO", "✓ Account-Datei kopiert (" + copiedFile.length() + " bytes)");
+        
+        // 5. Optionale Dateien kopieren (simple Version)
+        List<String> copiedFiles = new ArrayList<>();
+        copiedFiles.add("account.dat");
+        
+        copyOptionalFile("/data/data/" + PACKAGE_NAME + "/files/device-id", 
+                         tempDir + "device-id.txt", copiedFiles);
+        copyOptionalFile("/data/data/" + PACKAGE_NAME + "/files/internal-device-id", 
+                         tempDir + "internal-device-id.txt", copiedFiles);
+        copyOptionalFile("/data/data/" + PACKAGE_NAME + "/shared_prefs/" + PACKAGE_NAME + ".v2.playerprefs.xml", 
+                         tempDir + "playerprefs.xml", copiedFiles);
+        
+        if (includeFbToken) {
+            copyOptionalFile("/data/data/" + PACKAGE_NAME + "/shared_prefs/com.facebook.AccessTokenManager.SharedPreferences.xml", 
+                             tempDir + "fb_token.xml", copiedFiles);
+        }
+        
+        // 6. Backup-Info
+        createFileList(tempDir, copiedFiles, includeFbToken);
+        
+        // 7. Berechtigungen
+        RootManager.runRootCommand("chmod -R 777 '" + tempDir + "'");
+        
+        android.util.Log.d("BabixGO", "Erstelle ZIP...");
+        
+        // 8. ZIP erstellen
+        String zipFile = TEMP_PATH + accountName + ".zip";
+        boolean zipSuccess = ZipManager.zipDirectory(tempDir, zipFile);
+        
+        if (!zipSuccess) {
+            android.util.Log.e("BabixGO", "ZIP-Erstellung fehlgeschlagen");
+            deleteRecursive(tempDirFile);
+            return false;
+        }
+        
+        android.util.Log.d("BabixGO", "✓ ZIP erstellt");
+        
+        // 9. Zielverzeichnis
+        String targetDir = ACCOUNTS_EIGENE + accountName + "/";
+        File target = new File(targetDir);
+        if (!target.exists()) {
+            target.mkdirs();
+        }
+        
+        // 10. ZIP verschieben
+        String finalZip = targetDir + accountName + ".zip";
+        File zipFileObj = new File(zipFile);
+        File finalZipObj = new File(finalZip);
+        
+        if (finalZipObj.exists()) {
+            finalZipObj.delete();
+        }
+        
+        boolean moved = zipFileObj.renameTo(finalZipObj);
+        
+        // 11. Cleanup
+        deleteRecursive(tempDirFile);
+        if (zipFileObj.exists()) {
+            zipFileObj.delete();
+        }
+        
+        // 12. Erfolgsprüfung
+        boolean success = moved && finalZipObj.exists() && finalZipObj.length() > 0;
+        
+        android.util.Log.d("BabixGO", "=== BACKUP " + (success ? "ERFOLGREICH" : "FEHLGESCHLAGEN") + " ===");
+        android.util.Log.d("BabixGO", "ZIP: " + finalZip);
+        android.util.Log.d("BabixGO", "Größe: " + finalZipObj.length() + " bytes");
+        
+        return success;
+    }
+    
+    /**
+     * Hilfsmethode: Kopiere optionale Datei
+     */
+    private static void copyOptionalFile(String source, String dest, List<String> fileList) {
+        String command = "cp '" + source + "' '" + dest + "' 2>/dev/null";
+        RootManager.runRootCommand(command);
+        
+        if (new File(dest).exists()) {
+            fileList.add(new File(dest).getName());
+            android.util.Log.d("BabixGO", "✓ Optional kopiert: " + new File(dest).getName());
+        }
+    }
+    
+    /**
+     * Suche Account-Datei - VEREINFACHT
+     */
+    private static String findAccountFile() {
+        String[] possiblePaths = {
+            "/data/data/" + PACKAGE_NAME + "/files/DiskBasedCacheDirectory/WithBuddies.Services.User.0Production.dat",
+            "/data/data/" + PACKAGE_NAME + "/files/WithBuddies.Services.User.0Production.dat",
+            "/data/user/0/" + PACKAGE_NAME + "/files/DiskBasedCacheDirectory/WithBuddies.Services.User.0Production.dat"
+        };
+        
+        for (String path : possiblePaths) {
+            // SIMPLE CHECK: Versuche zu lesen
+            String cmd = "ls '" + path + "' 2>&1";
+            String result = RootManager.runRootCommand(cmd);
+            
+            if (!result.contains("No such file")) {
+                android.util.Log.d("BabixGO", "Gefunden: " + path);
+                return path;
+            }
+        }
+        
+        // Fallback: find
+        String cmd = "find /data/data/" + PACKAGE_NAME + " -name '*WithBuddies.Services.User*.dat' 2>/dev/null | head -n 1";
+        String result = RootManager.runRootCommand(cmd);
+        
+        if (result != null && result.trim().length() > 0 && !result.contains("Error")) {
+            return result.trim();
+        }
+        
+        return null;
+    }
+    
+    /**
      * Open a MonopolyGo friend link.
      * @param userId The user ID to add as friend
      */
