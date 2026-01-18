@@ -160,9 +160,8 @@ public class ZipManager {
         
         android.util.Log.d("BabixGO", "cat result: " + result);
         
-        // Prüfe Ziel
-        File destFile = new File(dest);
-        boolean destExists = destFile.exists();
+        // Prüfe Ziel mit Root-Zugriff
+        boolean destExists = checkFileExistsAfterCopy(dest);
         
         if (!destExists) {
             // Fallback: dd (Block-Kopie)
@@ -170,7 +169,7 @@ public class ZipManager {
             command = "dd if=\"" + source + "\" of=\"" + dest + "\" 2>&1";
             result = RootManager.runRootCommand(command);
             android.util.Log.d("BabixGO", "dd result: " + result);
-            destExists = new File(dest).exists();
+            destExists = checkFileExistsAfterCopy(dest);
         }
         
         if (!destExists) {
@@ -179,11 +178,26 @@ public class ZipManager {
             command = "cp -f \"" + source + "\" \"" + dest + "\" 2>&1";
             result = RootManager.runRootCommand(command);
             android.util.Log.d("BabixGO", "cp result: " + result);
-            destExists = new File(dest).exists();
+            destExists = checkFileExistsAfterCopy(dest);
         }
         
         android.util.Log.d("BabixGO", "Datei kopiert: " + destExists);
         return destExists;
+    }
+    
+    /**
+     * Check if file exists after copy operation
+     * Uses both regular File API and root-based check for maximum compatibility
+     */
+    private static boolean checkFileExistsAfterCopy(String path) {
+        // First try regular File API (works for user-accessible paths)
+        File file = new File(path);
+        if (file.exists()) {
+            return true;
+        }
+        
+        // If regular check fails, use root-based check (for protected directories)
+        return fileExistsWithRoot(path);
     }
     
     /**

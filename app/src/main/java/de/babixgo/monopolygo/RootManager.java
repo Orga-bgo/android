@@ -159,6 +159,12 @@ public class RootManager {
                 new InputStreamReader(process.getErrorStream()));
             
             for (String command : commands) {
+                // Validate each command before execution
+                if (!isCommandSafe(command)) {
+                    android.util.Log.e("BabixGO", "Command validation failed: " + command);
+                    output.append("Error: Command validation failed for: ").append(command).append("\n");
+                    continue;
+                }
                 os.writeBytes("sh -c '" + command.replace("'", "'\\''") + "'\n");
             }
             os.writeBytes("exit\n");
