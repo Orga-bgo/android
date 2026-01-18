@@ -1,59 +1,60 @@
 package de.babixgo.monopolygo;
 
-import android.content.ClipData;
-import android.content.ClipboardManager;
-import android.content.Context;
 import android.os.Bundle;
-import android.util.Log;
-import android.view.View;
-import android.widget.*;
+import android.widget.CheckBox;
+import android.widget.TextView;
+import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.material.button.MaterialButton;
+import android.view.View;
+import android.widget.EditText;
 import java.io.File;
+import java.io.FileWriter;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
-import com.opencsv.CSVWriter;
-import java.io.FileWriter;
 
-/**
- * Activity for account management operations.
- */
 public class AccountManagementActivity extends AppCompatActivity {
     
-    private static final String TAG = "AccountManagementActivity";
-    
-    private Button btnRestore, btnBackupOwn, btnBackupCustomer, btnCopyLinks;
-    private TextView tvStatus;
+    private MaterialButton btnRestore, btnBackup, btnDelete, btnEdit;
+    private TextView tvAccountCount, tvSecurityStatus;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_account_management);
+        setContentView(R.layout.activity_account_management_new);
         
         btnRestore = findViewById(R.id.btn_restore_account);
-        btnBackupOwn = findViewById(R.id.btn_backup_own);
-        btnBackupCustomer = findViewById(R.id.btn_backup_customer);
-        btnCopyLinks = findViewById(R.id.btn_copy_links);
-        tvStatus = findViewById(R.id.tv_status);
+        btnBackup = findViewById(R.id.btn_backup_account);
+        btnDelete = findViewById(R.id.btn_delete_account);
+        btnEdit = findViewById(R.id.btn_edit_account);
+        tvAccountCount = findViewById(R.id.tv_account_count);
+        tvSecurityStatus = findViewById(R.id.tv_security_status);
         
+        updateAccountCount();
         setupButtons();
     }
     
     private void setupButtons() {
         btnRestore.setOnClickListener(v -> showRestoreDialog());
-        btnBackupOwn.setOnClickListener(v -> showBackupOwnDialog());
-        btnBackupCustomer.setOnClickListener(v -> showBackupCustomerDialog());
-        btnCopyLinks.setOnClickListener(v -> showCopyLinksDialog());
+        btnBackup.setOnClickListener(v -> showBackupDialog());
+        btnDelete.setOnClickListener(v -> showDeleteDialog());
+        btnEdit.setOnClickListener(v -> showEditDialog());
+    }
+    
+    private void updateAccountCount() {
+        String[] accounts = AccountManager.getBackedUpAccounts(true);
+        int count = accounts.length;
+        tvAccountCount.setText(count + " Accounts\nvorhanden");
+        
+        boolean rootGranted = RootManager.hasRootAccess();
+        tvSecurityStatus.setText("Sicherheitsstatus:\n" + 
+            (rootGranted ? "Aktiv" : "Inaktiv"));
     }
     
     private void showRestoreDialog() {
-        // Only allow restoring from own accounts (customer folders don't contain backups)
-        showAccountSelectionDialog(true);
-    }
-    
-    private void showAccountSelectionDialog(boolean isOwnAccounts) {
-        String[] accounts = AccountManager.getBackedUpAccounts(isOwnAccounts);
+        String[] accounts = AccountManager.getBackedUpAccounts(true);
         
         if (accounts.length == 0) {
             Toast.makeText(this, "Keine Accounts gefunden", Toast.LENGTH_SHORT).show();
@@ -61,324 +62,215 @@ public class AccountManagementActivity extends AppCompatActivity {
         }
         
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Account auswählen");
+        builder.setTitle("Account wiederherstellen");
         builder.setItems(accounts, (dialog, which) -> {
             String accountName = accounts[which];
-            restoreAccount(accountName, isOwnAccounts);
+            restoreAccount(accountName);
         });
         builder.setNegativeButton("Abbrechen", null);
         builder.show();
     }
     
-    private void restoreAccount(String accountName, boolean isOwnAccounts) {
-        tvStatus.setText("Wiederherstelle Account: " + accountName);
+    private void restoreAccount(String accountName) {
+        // Progress Dialog anzeigen
+        AlertDialog progressDialog = new AlertDialog.Builder(this)
+            .setTitle("Wiederherstellen...")
+            .setMessage("Account wird wiederhergestellt\nBitte warten...")
+            .setCancelable(false)
+            .create();
+        progressDialog.show();
         
         new Thread(() -> {
-            String basePath = isOwnAccounts ? 
-                AccountManager.getAccountsEigenePath() : 
-                AccountManager.getAccountsKundenPath();
+            boolean success = AccountManager.restoreAccountExtended(accountName);
             
-            // Check for ZIP file first (new format)
-            String zipFile = basePath + accountName + "/" + accountName + ".zip";
-            boolean success = false;
-            
-            if (new java.io.File(zipFile).exists()) {
-                // Use extended restore for ZIP archives
-                success = AccountManager.restoreAccountExtended(accountName);
-            } else {
-                // Fall back to old .dat file restore
-                String sourceFile = basePath + accountName + "/WithBuddies.Services.User.0Production.dat";
-                success = AccountManager.restoreAccount(sourceFile);
-            }
-            
-            final boolean finalSuccess = success;
             runOnUiThread(() -> {
-                if (finalSuccess) {
-                    tvStatus.setText("Account erfolgreich wiederhergestellt: " + accountName);
-                    Toast.makeText(this, "Account wiederhergestellt", Toast.LENGTH_SHORT).show();
+                progressDialog.dismiss();
+                
+                if (success) {
+                    Toast.makeText(this, "✅ Account wiederhergestellt", 
+                        Toast.LENGTH_LONG).show();
                     
-                    // Ask if user wants to start the app
                     new AlertDialog.Builder(this)
                         .setTitle("App starten?")
-                        .setMessage("Möchten Sie MonopolyGo jetzt starten?")
-                        .setPositiveButton("Ja", (d, w) -> {
-                            AccountManager.startApp();
-                            Toast.makeText(this, "App wird gestartet...", Toast.LENGTH_SHORT).show();
-                        })
+                        .setMessage("MonopolyGo jetzt starten?")
+                        .setPositiveButton("Ja", (d, w) -> AccountManager.startApp())
                         .setNegativeButton("Nein", null)
                         .show();
                 } else {
-                    tvStatus.setText("Fehler beim Wiederherstellen");
-                    Toast.makeText(this, "Fehler beim Wiederherstellen", Toast.LENGTH_SHORT).show();
+                    new AlertDialog.Builder(this)
+                        .setTitle("Fehler")
+                        .setMessage("❌ Account konnte nicht wiederhergestellt werden.\n\n" +
+                                  "Mögliche Ursachen:\n" +
+                                  "• Root-Zugriff fehlt\n" +
+                                  "• ZIP-Datei beschädigt\n" +
+                                  "• Unzip-Tool fehlt")
+                        .setPositiveButton("OK", null)
+                        .show();
                 }
+                updateAccountCount();
             });
         }).start();
     }
     
-    private void showBackupOwnDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Eigenen Account sichern (Erweitert)");
-        
+    private void showBackupDialog() {
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_backup_extended, null);
         EditText etInternalId = dialogView.findViewById(R.id.et_internal_id);
         EditText etNote = dialogView.findViewById(R.id.et_note);
-        CheckBox cbIncludeFbToken = dialogView.findViewById(R.id.cb_include_fb_token);
+        CheckBox cbFbToken = dialogView.findViewById(R.id.cb_include_fb_token);
         
-        builder.setView(dialogView);
-        builder.setPositiveButton("Sichern", (dialog, which) -> {
-            String internalId = etInternalId.getText().toString().trim();
-            String note = etNote.getText().toString().trim();
-            boolean includeFbToken = cbIncludeFbToken.isChecked();
-            
-            if (internalId.isEmpty()) {
-                Toast.makeText(this, "Interne ID ist erforderlich", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
-            backupOwnAccountExtended(internalId, note, includeFbToken);
-        });
-        builder.setNegativeButton("Abbrechen", null);
-        builder.show();
+        new AlertDialog.Builder(this)
+            .setTitle("Account sichern")
+            .setView(dialogView)
+            .setPositiveButton("Sichern", (dialog, which) -> {
+                String id = etInternalId.getText().toString().trim();
+                String note = etNote.getText().toString().trim();
+                boolean includeFb = cbFbToken.isChecked();
+                
+                if (id.isEmpty()) {
+                    Toast.makeText(this, "Interne ID erforderlich", 
+                        Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                
+                backupAccount(id, note, includeFb);
+            })
+            .setNegativeButton("Abbrechen", null)
+            .show();
     }
     
-    private void backupOwnAccount(String internalId, String note) {
-        tvStatus.setText("Sichere Account...");
+    private void backupAccount(String internalId, String note, boolean includeFbToken) {
+        // Progress Dialog
+        AlertDialog progressDialog = new AlertDialog.Builder(this)
+            .setTitle("Sichern...")
+            .setMessage("Account wird gesichert\nBitte warten...")
+            .setCancelable(false)
+            .create();
+        progressDialog.show();
         
         new Thread(() -> {
-            // Extract UserID (optional - backup proceeds even if this fails)
-            String userId = DataExtractor.extractUserId();
-            String shortLink = null;
-            
-            if (userId == null) {
-                runOnUiThread(() -> {
-                    tvStatus.setText("Warnung: UserID konnte nicht extrahiert werden. Fortfahren mit Backup...");
-                    Toast.makeText(this, "UserID nicht gefunden - Backup wird trotzdem durchgeführt", Toast.LENGTH_LONG).show();
-                });
-            } else {
-                // Create short link only if UserID is available
-                shortLink = ShortLinkManager.createShortLink(userId, internalId);
-                if (shortLink == null) {
-                    runOnUiThread(() -> {
-                        tvStatus.setText("Warnung: Shortlink konnte nicht erstellt werden");
-                    });
-                }
-            }
-            
-            // Backup account (always proceed regardless of UserID extraction)
-            boolean success = AccountManager.backupAccount(
-                AccountManager.getAccountsEigenePath(), 
-                internalId
+            boolean success = AccountManager.backupAccountExtended(
+                internalId, 
+                includeFbToken
             );
             
             if (success) {
-                // Save CSV metadata
-                saveAccountMetadata(internalId, userId, shortLink, note);
+                saveMetadata(internalId, note, includeFbToken);
             }
             
-            final String finalShortLink = shortLink;
-            final String finalUserId = userId;
             runOnUiThread(() -> {
+                progressDialog.dismiss();
+                
                 if (success) {
-                    String message = "Account gesichert\n" +
-                                   "Interne ID: " + internalId + "\n" +
-                                   "UserID: " + (finalUserId != null ? finalUserId : "Nicht gefunden") + "\n" +
-                                   "Shortlink: " + (finalShortLink != null ? finalShortLink : "Nicht verfügbar");
-                    tvStatus.setText(message);
-                    Toast.makeText(this, "Account erfolgreich gesichert", Toast.LENGTH_SHORT).show();
+                    String message = "✅ Account erfolgreich gesichert!\n\n" +
+                                   "📝 ID: " + internalId + "\n" +
+                                   "📅 Datum: " + getCurrentDate() + "\n" +
+                                   "🔐 FB-Token: " + (includeFbToken ? "✓ gesichert" : "✗ nicht gesichert") + "\n" +
+                                   "💾 Format: ZIP-Archiv";
+                    
+                    new AlertDialog.Builder(this)
+                        .setTitle("Backup erfolgreich")
+                        .setMessage(message)
+                        .setPositiveButton("OK", null)
+                        .show();
                 } else {
-                    tvStatus.setText("Fehler beim Sichern");
-                    Toast.makeText(this, "Fehler beim Sichern", Toast.LENGTH_SHORT).show();
+                    new AlertDialog.Builder(this)
+                        .setTitle("Fehler")
+                        .setMessage("❌ Backup fehlgeschlagen\n\n" +
+                                  "Mögliche Ursachen:\n" +
+                                  "• Root-Zugriff fehlt\n" +
+                                  "• MonopolyGo nicht installiert\n" +
+                                  "• Speicherplatz voll\n" +
+                                  "• ZIP-Tool fehlt")
+                        .setPositiveButton("OK", null)
+                        .show();
                 }
+                updateAccountCount();
             });
         }).start();
     }
     
-    private void backupOwnAccountExtended(String internalId, String note, boolean includeFbToken) {
-        tvStatus.setText("Sichere Account (erweitert)...");
-        
-        new Thread(() -> {
-            // Extract UserID (optional - backup proceeds even if this fails)
-            String userId = DataExtractor.extractUserId();
-            String shortLink = null;
-            
-            if (userId == null) {
-                runOnUiThread(() -> {
-                    tvStatus.setText("Warnung: UserID konnte nicht extrahiert werden. Fortfahren mit Backup...");
-                    Toast.makeText(this, "UserID nicht gefunden - Backup wird trotzdem durchgeführt", Toast.LENGTH_LONG).show();
-                });
-            } else {
-                // Create short link only if UserID is available
-                shortLink = ShortLinkManager.createShortLink(userId, internalId);
-                if (shortLink == null) {
-                    runOnUiThread(() -> {
-                        tvStatus.setText("Warnung: Shortlink konnte nicht erstellt werden");
-                    });
-                }
-            }
-            
-            // Extended backup with ZIP archive
-            boolean success = AccountManager.backupAccountExtended(internalId, includeFbToken);
-            
-            if (success) {
-                // Save CSV metadata
-                saveAccountMetadata(internalId, userId, shortLink, note);
-            }
-            
-            final String finalShortLink = shortLink;
-            final String finalUserId = userId;
-            runOnUiThread(() -> {
-                if (success) {
-                    String message = "Account gesichert (ZIP)\n" +
-                                   "Interne ID: " + internalId + "\n" +
-                                   "UserID: " + (finalUserId != null ? finalUserId : "Nicht gefunden") + "\n" +
-                                   "Shortlink: " + (finalShortLink != null ? finalShortLink : "Nicht verfügbar") + "\n" +
-                                   "FB-Token: " + (includeFbToken ? "Gesichert" : "Nicht gesichert");
-                    tvStatus.setText(message);
-                    Toast.makeText(this, "Account erfolgreich als ZIP gesichert", Toast.LENGTH_SHORT).show();
-                } else {
-                    tvStatus.setText("Fehler beim Sichern");
-                    Toast.makeText(this, "Fehler beim Sichern", Toast.LENGTH_SHORT).show();
-                }
-            });
-        }).start();
-    }
-    
-    private void saveAccountMetadata(String internalId, String userId, 
-                                     String shortLink, String note) {
-        String csvPath = AccountManager.getAccountsEigenePath() + "Accountinfos.csv";
-        File csvFile = new File(csvPath);
-        
+    private void saveMetadata(String id, String note, boolean fbIncluded) {
         try {
+            String csvPath = AccountManager.getAccountsEigenePath() + "Accountinfos.csv";
+            File csvFile = new File(csvPath);
             boolean writeHeader = !csvFile.exists();
             
-            try (CSVWriter writer = new CSVWriter(new FileWriter(csvPath, true))) {
-                if (writeHeader) {
-                    writer.writeNext(new String[]{
-                        "InterneID", "UserID", "Datum", "Shortlink", "Notiz"
-                    });
-                }
-                
-                SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-                String date = sdf.format(new Date());
-                
-                writer.writeNext(new String[]{
-                    internalId,
-                    userId != null ? userId : "N/A",
-                    date,
-                    shortLink != null ? shortLink : "N/A",
-                    note
-                });
+            FileWriter fw = new FileWriter(csvFile, true);
+            if (writeHeader) {
+                fw.write("InterneID,Datum,FBToken,Notiz\n");
             }
+            
+            String date = getCurrentDate();
+            String fb = fbIncluded ? "JA" : "NEIN";
+            
+            fw.write(String.format("%s,%s,%s,\"%s\"\n", id, date, fb, note));
+            fw.close();
         } catch (Exception e) {
-            Log.e(TAG, "Failed to save account metadata to CSV", e);
-            runOnUiThread(() -> {
-                Toast.makeText(this, "Warnung: Metadaten konnten nicht gespeichert werden", 
-                    Toast.LENGTH_LONG).show();
-            });
+            e.printStackTrace();
         }
     }
     
-    private void showBackupCustomerDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Kunden Account sichern");
-        
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_backup_customer, null);
-        EditText etCustomerName = dialogView.findViewById(R.id.et_customer_name);
-        EditText etFriendLink = dialogView.findViewById(R.id.et_friend_link);
-        
-        builder.setView(dialogView);
-        builder.setPositiveButton("Sichern", (dialog, which) -> {
-            String customerName = etCustomerName.getText().toString().trim();
-            String friendLink = etFriendLink.getText().toString().trim();
-            
-            if (customerName.isEmpty() || friendLink.isEmpty()) {
-                Toast.makeText(this, "Alle Felder sind erforderlich", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            
-            backupCustomerAccount(customerName, friendLink);
-        });
-        builder.setNegativeButton("Abbrechen", null);
-        builder.show();
+    private String getCurrentDate() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+        return sdf.format(new Date());
     }
     
-    private void backupCustomerAccount(String customerName, String friendLink) {
-        tvStatus.setText("Sichere Kunden-Metadaten: " + customerName);
+    private void showDeleteDialog() {
+        String[] accounts = AccountManager.getBackedUpAccounts(true);
         
-        // Extract UserID from friend link
-        String userId = extractUserIdFromLink(friendLink);
-        if (userId == null) {
-            Toast.makeText(this, "Ungültiger Freundschaftslink", Toast.LENGTH_SHORT).show();
+        if (accounts.length == 0) {
+            Toast.makeText(this, "Keine Accounts vorhanden", Toast.LENGTH_SHORT).show();
             return;
         }
         
-        // Create customer folder (without account backup files)
-        File customerDir = new File(AccountManager.getAccountsKundenPath(), customerName);
-        if (!customerDir.exists()) {
-            customerDir.mkdirs();
-        }
-        
-        // Save customer info (in real implementation, this would save to CSV)
-        // Note: Customer folders only contain metadata, not account backup files
-        String message = "Kunden-Metadaten gespeichert\n" +
-                       "Name: " + customerName + "\n" +
-                       "UserID: " + userId + "\n" +
-                       "Link: " + friendLink + "\n" +
-                       "Ordner: " + customerDir.getAbsolutePath();
-        tvStatus.setText(message);
-        Toast.makeText(this, "Kunden-Metadaten gespeichert", Toast.LENGTH_SHORT).show();
+        new AlertDialog.Builder(this)
+            .setTitle("Account löschen")
+            .setMessage("⚠️ Welchen Account möchten Sie löschen?")
+            .setItems(accounts, (dialog, which) -> {
+                String accountName = accounts[which];
+                confirmDelete(accountName);
+            })
+            .setNegativeButton("Abbrechen", null)
+            .show();
     }
     
-    private String extractUserIdFromLink(String link) {
-        // Extract UserID from monopolygo://add-friend/USERID
-        // Handles various formats including query parameters
-        if (link == null || link.isEmpty()) {
-            return null;
-        }
+    private void confirmDelete(String accountName) {
+        new AlertDialog.Builder(this)
+            .setTitle("Wirklich löschen?")
+            .setMessage("⚠️ Account \"" + accountName + "\" wirklich löschen?\n\n" +
+                      "Diese Aktion kann nicht rückgängig gemacht werden!")
+            .setPositiveButton("Löschen", (d, w) -> {
+                deleteAccount(accountName);
+            })
+            .setNegativeButton("Abbrechen", null)
+            .show();
+    }
+    
+    private void deleteAccount(String accountName) {
+        String accountPath = AccountManager.getAccountsEigenePath() + accountName;
+        File accountDir = new File(accountPath);
         
-        try {
-            // Normalize the link
-            link = link.trim();
-            
-            // Check for the expected protocol and path
-            if (link.contains("add-friend/")) {
-                // Find the start of the user ID
-                int startIndex = link.indexOf("add-friend/") + "add-friend/".length();
-                
-                if (startIndex < link.length()) {
-                    // Extract everything after "add-friend/"
-                    String userId = link.substring(startIndex);
-                    
-                    // Remove any query parameters or fragments
-                    int endIndex = userId.length();
-                    if (userId.contains("?")) {
-                        endIndex = Math.min(endIndex, userId.indexOf("?"));
-                    }
-                    if (userId.contains("#")) {
-                        endIndex = Math.min(endIndex, userId.indexOf("#"));
-                    }
-                    if (userId.contains("&")) {
-                        endIndex = Math.min(endIndex, userId.indexOf("&"));
-                    }
-                    
-                    userId = userId.substring(0, endIndex).trim();
-                    
-                    // Validate that it's numeric (UserIDs should be numbers)
-                    if (userId.matches("\\d+")) {
-                        return userId;
-                    }
+        if (deleteRecursive(accountDir)) {
+            Toast.makeText(this, "✅ Account gelöscht", Toast.LENGTH_SHORT).show();
+            updateAccountCount();
+        } else {
+            Toast.makeText(this, "❌ Fehler beim Löschen", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private boolean deleteRecursive(File fileOrDirectory) {
+        if (fileOrDirectory.isDirectory()) {
+            File[] children = fileOrDirectory.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deleteRecursive(child);
                 }
             }
-        } catch (Exception e) {
-            // Log error in real implementation
-            return null;
         }
-        
-        return null;
+        return fileOrDirectory.delete();
     }
     
-    private void showCopyLinksDialog() {
-        Toast.makeText(this, "Link-Kopie Funktion (In Entwicklung)", Toast.LENGTH_SHORT).show();
-        // This would show a list of saved links and allow copying to clipboard
+    private void showEditDialog() {
+        Toast.makeText(this, "🚧 Funktion in Entwicklung", Toast.LENGTH_SHORT).show();
     }
 }

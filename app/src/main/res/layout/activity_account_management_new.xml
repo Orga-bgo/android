@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="#F5F5F5">
+
+    <!-- Header -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Account-Verwaltung"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:textColor="#1E3A5F"
+        android:layout_marginBottom="8dp" />
+
+    <!-- Status Cards Container -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
+
+        <!-- Account Count Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="#FFFFFF">
+
+            <TextView
+                android:id="@+id/tv_account_count"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="0 Accounts\nvorhanden"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#1E3A5F"
+                android:gravity="center"
+                android:padding="16dp" />
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Security Status Card -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="2dp"
+            app:cardBackgroundColor="#FFFFFF">
+
+            <TextView
+                android:id="@+id/tv_security_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Sicherheitsstatus:\nInaktiv"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="#1E3A5F"
+                android:gravity="center"
+                android:padding="16dp" />
+        </com.google.android.material.card.MaterialCardView>
+
+    </LinearLayout>
+
+    <!-- Action Buttons -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_restore_account"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Account wiederherstellen"
+        android:textSize="16sp"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp"
+        app:icon="@android:drawable/ic_menu_revert"
+        app:iconGravity="textStart"
+        app:cornerRadius="12dp"
+        style="@style/Widget.MaterialComponents.Button" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_backup_account"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Account sichern"
+        android:textSize="16sp"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp"
+        app:icon="@android:drawable/ic_menu_save"
+        app:iconGravity="textStart"
+        app:cornerRadius="12dp"
+        style="@style/Widget.MaterialComponents.Button" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_delete_account"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Account löschen"
+        android:textSize="16sp"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp"
+        app:icon="@android:drawable/ic_menu_delete"
+        app:iconGravity="textStart"
+        app:cornerRadius="12dp"
+        app:backgroundTint="#F44336"
+        style="@style/Widget.MaterialComponents.Button" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btn_edit_account"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Account bearbeiten"
+        android:textSize="16sp"
+        android:padding="16dp"
+        android:layout_marginBottom="12dp"
+        app:icon="@android:drawable/ic_menu_edit"
+        app:iconGravity="textStart"
+        app:cornerRadius="12dp"
+        app:backgroundTint="#9E9E9E"
+        style="@style/Widget.MaterialComponents.Button" />
+
+</LinearLayout>

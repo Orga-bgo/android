@@ -33,6 +33,9 @@ public class MainActivity extends AppCompatActivity {
         // Check root access
         checkRootAccess();
         
+        // Check ZIP tool availability
+        checkZipTool();
+        
         // Setup buttons
         setupButtons();
     }
@@ -95,6 +98,25 @@ public class MainActivity extends AppCompatActivity {
             .setPositiveButton("OK", null)
             .setCancelable(true)
             .show();
+    }
+    
+    private void checkZipTool() {
+        new Thread(() -> {
+            String result = RootManager.runRootCommand("which zip");
+            boolean hasZip = !result.contains("not found") && !result.isEmpty();
+            
+            if (!hasZip) {
+                runOnUiThread(() -> {
+                    new AlertDialog.Builder(this)
+                        .setTitle("ZIP-Tool fehlt")
+                        .setMessage("⚠️ Das 'zip' Tool wurde nicht gefunden.\n\n" +
+                                  "Backup/Restore funktioniert möglicherweise nicht.\n\n" +
+                                  "Lösung: Installieren Sie 'zip' über Ihren Root-Manager oder Termux.")
+                        .setPositiveButton("OK", null)
+                        .show();
+                });
+            }
+        }).start();
     }
     
     private void setupButtons() {
