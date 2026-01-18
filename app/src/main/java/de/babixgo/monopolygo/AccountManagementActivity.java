@@ -231,11 +231,39 @@ public class AccountManagementActivity extends AppCompatActivity {
             String date = getCurrentDate();
             String fb = fbIncluded ? "JA" : "NEIN";
             
-            fw.write(String.format("%s,%s,%s,\"%s\"\n", id, date, fb, note));
+            // Sanitize CSV fields to prevent injection
+            String sanitizedId = sanitizeCSV(id);
+            String sanitizedDate = sanitizeCSV(date);
+            String sanitizedFb = sanitizeCSV(fb);
+            String sanitizedNote = sanitizeCSV(note);
+            
+            fw.write(String.format("%s,%s,%s,\"%s\"\n", 
+                sanitizedId, sanitizedDate, sanitizedFb, sanitizedNote));
             fw.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
+    }
+    
+    /**
+     * Sanitize CSV field to prevent CSV injection attacks
+     */
+    private String sanitizeCSV(String value) {
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+        
+        // Remove dangerous characters that could trigger formula execution
+        if (value.startsWith("=") || value.startsWith("+") || 
+            value.startsWith("-") || value.startsWith("@") ||
+            value.startsWith("\t") || value.startsWith("\r")) {
+            value = "'" + value; // Prefix with single quote to prevent formula execution
+        }
+        
+        // Escape quotes
+        value = value.replace("\"", "\"\"");
+        
+        return value;
     }
     
     private String getCurrentDate() {

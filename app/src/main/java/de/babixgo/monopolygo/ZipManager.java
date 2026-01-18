@@ -52,15 +52,15 @@ public class ZipManager {
                 ZipEntry zipEntry = new ZipEntry(relativePath);
                 zos.putNextEntry(zipEntry);
                 
-                FileInputStream fis = new FileInputStream(file);
-                byte[] buffer = new byte[8192];
-                int length;
-                
-                while ((length = fis.read(buffer)) > 0) {
-                    zos.write(buffer, 0, length);
+                try (FileInputStream fis = new FileInputStream(file)) {
+                    byte[] buffer = new byte[8192];
+                    int length;
+                    
+                    while ((length = fis.read(buffer)) > 0) {
+                        zos.write(buffer, 0, length);
+                    }
                 }
                 
-                fis.close();
                 zos.closeEntry();
             }
         }
@@ -97,37 +97,49 @@ public class ZipManager {
                 destDirFile.mkdirs();
             }
             
-            FileInputStream fis = new FileInputStream(zipFilePath);
-            ZipInputStream zis = new ZipInputStream(fis);
-            ZipEntry zipEntry;
-            
-            while ((zipEntry = zis.getNextEntry()) != null) {
-                String fileName = zipEntry.getName();
-                File newFile = new File(destDir, fileName);
+            try (FileInputStream fis = new FileInputStream(zipFilePath);
+                 ZipInputStream zis = new ZipInputStream(fis)) {
+                ZipEntry zipEntry;
                 
-                // Create parent directories
-                File parent = newFile.getParentFile();
-                if (parent != null && !parent.exists()) {
-                    parent.mkdirs();
-                }
-                
-                if (!zipEntry.isDirectory()) {
-                    FileOutputStream fos = new FileOutputStream(newFile);
-                    byte[] buffer = new byte[8192];
-                    int length;
+                while ((zipEntry = zis.getNextEntry()) != null) {
+                    String fileName = zipEntry.getName();
                     
-                    while ((length = zis.read(buffer)) > 0) {
-                        fos.write(buffer, 0, length);
+                    // Security: Prevent path traversal (Zip Slip vulnerability)
+                    if (fileName.contains("..") || fileName.startsWith("/")) {
+                        zis.closeEntry();
+                        continue;
                     }
                     
-                    fos.close();
+                    File newFile = new File(destDir, fileName);
+                    
+                    // Additional security check: ensure file is within destDir
+                    String canonicalDestPath = destDirFile.getCanonicalPath();
+                    String canonicalFilePath = newFile.getCanonicalPath();
+                    if (!canonicalFilePath.startsWith(canonicalDestPath + File.separator)) {
+                        zis.closeEntry();
+                        continue;
+                    }
+                    
+                    // Create parent directories
+                    File parent = newFile.getParentFile();
+                    if (parent != null && !parent.exists()) {
+                        parent.mkdirs();
+                    }
+                    
+                    if (!zipEntry.isDirectory()) {
+                        try (FileOutputStream fos = new FileOutputStream(newFile)) {
+                            byte[] buffer = new byte[8192];
+                            int length;
+                            
+                            while ((length = zis.read(buffer)) > 0) {
+                                fos.write(buffer, 0, length);
+                            }
+                        }
+                    }
+                    
+                    zis.closeEntry();
                 }
-                
-                zis.closeEntry();
             }
-            
-            zis.close();
-            fis.close();
             
             return true;
         } catch (Exception e) {
