@@ -189,8 +189,23 @@ public class AccountManager {
         
         // 2. Berechtigungen prüfen
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11+: MANAGE_EXTERNAL_STORAGE erforderlich
             if (!Environment.isExternalStorageManager()) {
                 Log.e("BabixGO", "FEHLER: MANAGE_EXTERNAL_STORAGE Berechtigung fehlt!");
+                return false;
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Android 6-10: Prüfe ob Temp-Verzeichnis beschreibbar ist
+            File tempTestFile = new File(TEMP_PATH, ".permission_test");
+            try {
+                tempTestFile.getParentFile().mkdirs();
+                if (!tempTestFile.createNewFile()) {
+                    Log.e("BabixGO", "FEHLER: Kann nicht in Temp-Verzeichnis schreiben - Berechtigung fehlt möglicherweise");
+                    return false;
+                }
+                tempTestFile.delete();
+            } catch (Exception e) {
+                Log.e("BabixGO", "FEHLER: Keine Schreibberechtigung für Speicher: " + e.getMessage());
                 return false;
             }
         }
