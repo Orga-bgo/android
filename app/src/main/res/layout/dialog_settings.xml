@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Pfad für ZIP-Backups (Ausgabe):"
+        android:textSize="16sp"
+        android:layout_marginBottom="8dp" />
+
+    <EditText
+        android:id="@+id/et_backup_output_path"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="/storage/emulated/0/MonopolyGo/Backups/"
+        android:layout_marginBottom="16dp"
+        android:inputType="textUri" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Pfad für ZIP-Restore (Eingabe):"
+        android:textSize="16sp"
+        android:layout_marginBottom="8dp" />
+
+    <EditText
+        android:id="@+id/et_restore_input_path"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="/storage/emulated/0/MonopolyGo/Backups/"
+        android:layout_marginBottom="16dp"
+        android:inputType="textUri" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Namens-Präfix:"
+        android:textSize="16sp"
+        android:layout_marginBottom="8dp" />
+
+    <EditText
+        android:id="@+id/et_name_prefix"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="z.B. MGO_ oder leer lassen"
+        android:inputType="text" />
+
+</LinearLayout>

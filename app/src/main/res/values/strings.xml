@@ -15,4 +15,9 @@
     <string name="download_install">Download und Installation</string>
     <string name="root_required">Root-Zugriff erforderlich</string>
     <string name="root_warning">Diese App benötigt Root-Zugriff für volle Funktionalität</string>
+    <string name="settings">Einstellungen</string>
+    <string name="backup_output_path">Pfad für ZIP-Backups (Ausgabe)</string>
+    <string name="restore_input_path">Pfad für ZIP-Restore (Eingabe)</string>
+    <string name="name_prefix">Namens-Präfix</string>
+    <string name="settings_saved">Einstellungen gespeichert</string>
 </resources>

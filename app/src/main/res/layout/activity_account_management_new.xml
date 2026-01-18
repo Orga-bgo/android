@@ -188,6 +188,23 @@
                     app:iconSize="24dp"
                     app:iconGravity="textStart"
                     app:cornerRadius="12dp"
+                    android:layout_marginBottom="12dp"
+                    android:elevation="2dp" />
+
+                <!-- Einstellungen Button (Grau) -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_settings"
+                    android:layout_width="match_parent"
+                    android:layout_height="64dp"
+                    android:text="Einstellungen"
+                    android:textSize="16sp"
+                    android:textColor="#FFFFFF"
+                    android:background="@drawable/gradient_gray"
+                    app:icon="@drawable/ic_settings"
+                    app:iconTint="#FFFFFF"
+                    app:iconSize="24dp"
+                    app:iconGravity="textStart"
+                    app:cornerRadius="12dp"
                     android:elevation="2dp" />
 
             </LinearLayout>

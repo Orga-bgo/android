@@ -6,11 +6,11 @@
     android:orientation="vertical"
     android:padding="24dp">
 
-    <!-- Interne ID -->
+    <!-- Name -->
     <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Interne ID"
+        android:hint="Name"
         android:layout_marginBottom="16dp"
         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
 
