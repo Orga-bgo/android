@@ -16,6 +16,7 @@ drawable ic_launcher
 drawable ic_restore
 drawable ic_save
 drawable info_background
+drawable info_background_light
 id btn_account_management
 id btn_add_customer
 id btn_assignment
@@ -31,6 +32,7 @@ id btn_partner_event
 id btn_restore_account
 id btn_select_accounts
 id btn_team_setup
+id cb_include_fb_token
 id et_customer_name
 id et_friend_link
 id et_internal_id
@@ -44,6 +46,7 @@ layout activity_friendship
 layout activity_main
 layout activity_partner_event
 layout dialog_backup_customer
+layout dialog_backup_extended
 layout dialog_backup_own
 layout dialog_backup_simple
 string account_management
