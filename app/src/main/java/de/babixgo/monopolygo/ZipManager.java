@@ -163,9 +163,8 @@ public class ZipManager {
         
         android.util.Log.d("BabixGO", "Copy result: " + result);
         
-        // Prüfe ob Ziel existiert
-        File destFile = new File(dest);
-        boolean destExists = destFile.exists();
+        // Prüfe ob Ziel existiert (mit Root)
+        boolean destExists = fileExistsWithRoot(dest);
         
         if (!destExists) {
             // Fallback: Versuche mit cp
@@ -173,7 +172,7 @@ public class ZipManager {
             command = "cp -f \"" + source + "\" \"" + dest + "\" 2>&1";
             result = RootManager.runRootCommand(command);
             android.util.Log.d("BabixGO", "CP result: " + result);
-            destExists = new File(dest).exists();
+            destExists = fileExistsWithRoot(dest);
         }
         
         android.util.Log.d("BabixGO", "Datei kopiert: " + destExists);
