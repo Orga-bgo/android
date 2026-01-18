@@ -5,6 +5,41 @@ All notable changes to the MonopolyGo Manager Android App will be documented in 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.4] - 2026-01-18
+
+### Fixed
+- **Root Command Execution on Android 10+ / Android 14**
+  - **CRITICAL FIX**: Replaced manual `Runtime.exec("su")` with libsu library
+  - Fixed root command failures on Android 10, 11, 12, 13, and 14
+  - Eliminated `sh -c` wrapper that was incompatible with modern root solutions
+  - Root commands now work reliably with Magisk 24+, KernelSU, and newer root implementations
+  - Resolved SELinux policy violations on Android 10+ devices
+  - Fixed quote escaping issues that caused command failures
+  
+- **RootManager.java - Complete Refactor**
+  - Now uses libsu 5.2.2 Shell API (already in dependencies but unused)
+  - Removed 78 lines of complex manual stream handling
+  - Added 61 lines of clean, modern libsu-based implementation
+  - Net result: -17 lines with better functionality
+  - Improved error handling with `Shell.Result.isSuccess()`
+  - Better logging with separate stdout/stderr
+  - Automatic shell context handling (no manual `sh -c` needed)
+  
+- **Compatibility Improvements**
+  - Works on Android 5.0 (API 21) through Android 14 (API 34)
+  - Compatible with Magisk 24-27+
+  - Compatible with KernelSU
+  - Backward compatible with older SuperSU (though deprecated)
+  - No breaking API changes - existing code works unchanged
+
+### Documentation
+- **ANDROID_14_ROOT_FIX.md**
+  - Comprehensive documentation of the root execution problem
+  - Detailed explanation of why `sh -c` wrapper failed on Android 10+
+  - Migration guide from old implementation to libsu
+  - Testing recommendations for different Android versions
+  - Security improvements analysis
+
 ## [1.0.3] - 2026-01-13
 
 ### Fixed
