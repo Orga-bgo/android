@@ -768,7 +768,11 @@ public class AccountManager {
         if (success) {
             backupOptionalFiles(tempDir, includeFbToken);
         }
-        
+
+        // Set permissions so Java can read the files for ZIP creation
+        Log.d(TAG, "Setting permissions for temp directory");
+        RootManager.runRootCommand("chmod -R 777 " + escapeShellArg(tempDir));
+
         // 5. ZIP erstellen (reverse of restore step 4 unzip)
         String tempZipFile = TEMP_PATH + accountName + ".zip";
         Log.d(TAG, "Creating ZIP archive: " + tempZipFile);
