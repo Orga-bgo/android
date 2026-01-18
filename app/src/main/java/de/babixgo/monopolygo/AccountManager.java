@@ -678,17 +678,21 @@ public class AccountManager {
     }
 
     /**
-     * Backup Account - Mirrors restoreAccountExtended in reverse order
-     * Uses same tests, commands, and variables as restore
+     * Backup Account - Simplified version that copies files directly to target directory
+     * Avoids /data/local/tmp/ permission issues by working in user-accessible storage
      */
     public static boolean backupAccountSimple(String accountName, boolean includeFbToken) {
-        // Validate accountName to prevent command injection (same as restore)
+        // Validate accountName to prevent command injection
         if (!isValidAccountName(accountName)) {
             Log.e(TAG, "Invalid account name: " + accountName);
             return false;
         }
 
-        // 1. App stoppen (same as restore step 1)
+        Log.d(TAG, "=== BACKUP START ===");
+        Log.d(TAG, "Account: " + accountName);
+        Log.d(TAG, "FB-Token: " + includeFbToken);
+
+        // 1. App stoppen
         forceStopApp();
 
         try {
@@ -697,119 +701,89 @@ public class AccountManager {
             Log.e(TAG, "Sleep interrupted during backup", e);
         }
 
-        // 2. Zielverzeichnis erstellen (reverse of restore step 6 cleanup)
-        String targetDir = ACCOUNTS_EIGENE + accountName + "/";
-        File target = new File(targetDir);
-        if (!target.exists()) {
-            target.mkdirs();
-        }
-
-        // Define final ZIP path (reverse of restore step 2)
-        String zipPath = targetDir + accountName + ".zip";
-        File zipFile = new File(zipPath);
-
-        // 3. Temporäres Verzeichnis erstellen (same as restore step 3)
-        String tempDir = TEMP_PATH + accountName + "_backup/";
-        File tempDirFile = new File(tempDir);
-
-        // Altes Temp-Verzeichnis löschen falls vorhanden (same as restore)
-        if (tempDirFile.exists()) {
-            Log.d(TAG, "Deleting old temp directory: " + tempDir);
-            String rmCommand = "rm -rf " + escapeShellArg(tempDir);
-            RootManager.runRootCommand(rmCommand);
-        }
-
-        // Create temp directory with ROOT (required for /data/local/tmp/)
-        Log.d(TAG, "Creating temp directory with root: " + tempDir);
-        String mkdirCommand = "mkdir -p " + escapeShellArg(tempDir);
-        String mkdirResult = RootManager.runRootCommand(mkdirCommand);
-
-        // Verify directory was created
-        String verifyCommand = "[ -d " + escapeShellArg(tempDir) + " ] && echo 'exists' || echo 'not found'";
-        String verifyResult = RootManager.runRootCommand(verifyCommand);
-
-        if (!verifyResult.contains("exists")) {
-            Log.e(TAG, "Failed to create temp directory: " + tempDir);
-            return false;
-        }
-
-        Log.d(TAG, "Temp directory created successfully: " + tempDir);
-
-        // 4. Find the account file - check if exists and search if needed
+        // 2. Find the account file first
         String accountFilePath = findAccountFileForBackup();
         if (accountFilePath == null) {
             Log.e(TAG, "Account file not found - game may not have been run yet");
-            // Delete temp directory with root
-            RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
             return false;
         }
 
         Log.d(TAG, "Found account file at: " + accountFilePath);
 
-        // 5. Dateien kopieren (reverse of restore step 5)
-        boolean success = true;
+        // 3. Create target directory and temp subdirectory in user storage (no permission issues)
+        String targetDir = ACCOUNTS_EIGENE + accountName + "/";
+        String tempDir = targetDir + "temp/";
 
-        // Required file (reverse of restore)
-        String cpCommand = "cp " + escapeShellArg(accountFilePath) + " " + escapeShellArg(tempDir + "account.dat");
+        File targetDirFile = new File(targetDir);
+        File tempDirFile = new File(tempDir);
+
+        if (!targetDirFile.exists()) {
+            targetDirFile.mkdirs();
+        }
+
+        // Clean up old temp directory if exists
+        if (tempDirFile.exists()) {
+            deleteRecursive(tempDirFile);
+        }
+
+        tempDirFile.mkdirs();
+
+        Log.d(TAG, "Temp directory: " + tempDir);
+
+        // 4. Copy files to temp directory using root
+        String accountDatDest = tempDir + "account.dat";
+
+        Log.d(TAG, "Copying account file...");
+        String cpCommand = "cp " + escapeShellArg(accountFilePath) + " " + escapeShellArg(accountDatDest);
         String cpResult = RootManager.runRootCommand(cpCommand);
 
-        // Check if copy succeeded (same test as restore)
-        boolean copySuccess = new File(tempDir + "account.dat").exists();
-        success = copySuccess && !cpResult.contains("Error") && !cpResult.contains("cannot");
+        // 5. Set permissions so Java can read the copied file
+        Log.d(TAG, "Setting permissions for copied files");
+        RootManager.runRootCommand("chmod 666 " + escapeShellArg(accountDatDest));
 
-        if (!copySuccess) {
+        // Verify copy succeeded
+        File accountDatFile = new File(accountDatDest);
+        if (!accountDatFile.exists() || accountDatFile.length() == 0) {
             Log.e(TAG, "Failed to copy account file. Command output: " + cpResult);
-            // Delete temp directory with root
-            RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
+            deleteRecursive(tempDirFile);
             return false;
         }
-        
-        // Optionale Dateien kopieren (reverse of restore)
-        if (success) {
-            backupOptionalFiles(tempDir, includeFbToken);
-        }
 
-        // Set permissions so Java can read the files for ZIP creation
-        Log.d(TAG, "Setting permissions for temp directory");
-        RootManager.runRootCommand("chmod -R 777 " + escapeShellArg(tempDir));
+        Log.d(TAG, "Account file copied successfully (" + accountDatFile.length() + " bytes)");
 
-        // 5. ZIP erstellen (reverse of restore step 4 unzip)
-        String tempZipFile = TEMP_PATH + accountName + ".zip";
-        Log.d(TAG, "Creating ZIP archive: " + tempZipFile);
+        // 6. Copy optional files to temp directory
+        backupOptionalFiles(tempDir, includeFbToken);
 
-        // Use Java's built-in ZIP functionality (no external zip binary needed)
-        boolean zipSuccess = ZipManager.zipDirectory(tempDir, tempZipFile);
+        // 7. Set permissions on all files in temp directory
+        Log.d(TAG, "Setting permissions on temp files");
+        RootManager.runRootCommand("chmod -R 666 " + escapeShellArg(tempDir) + "* 2>/dev/null || true");
 
-        if (!zipSuccess) {
-            // Delete temp directory with root
-            RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
-            return false;
-        }
-        
-        // Move ZIP to final location
-        File tempZipFileObj = new File(tempZipFile);
-        
-        // Delete old ZIP if exists (same pattern as restore)
+        // 8. Create ZIP archive from temp directory
+        String zipPath = targetDir + accountName + ".zip";
+        File zipFile = new File(zipPath);
+
+        // Delete old ZIP if exists
         if (zipFile.exists()) {
             zipFile.delete();
         }
-        
-        boolean moved = tempZipFileObj.renameTo(zipFile);
 
-        if (!moved) {
-            // Delete temp directory with root
-            RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
-            if (tempZipFileObj.exists()) {
-                tempZipFileObj.delete();
-            }
+        Log.d(TAG, "Creating ZIP archive: " + zipPath);
+        boolean zipSuccess = ZipManager.zipDirectory(tempDir, zipPath);
+
+        if (!zipSuccess) {
+            Log.e(TAG, "Failed to create ZIP archive");
+            deleteRecursive(tempDirFile);
             return false;
         }
-        
-        // 6. Aufräumen (same as restore step 6) - use root to delete
-        Log.d(TAG, "Cleaning up temp directory");
-        RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
 
-        return success;
+        Log.d(TAG, "ZIP created successfully (" + zipFile.length() + " bytes)");
+
+        // 9. Clean up temp directory
+        Log.d(TAG, "Cleaning up temp directory");
+        deleteRecursive(tempDirFile);
+
+        Log.d(TAG, "=== BACKUP COMPLETE ===");
+        return true;
     }
     
     /**
