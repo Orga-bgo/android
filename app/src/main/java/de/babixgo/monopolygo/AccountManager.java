@@ -223,7 +223,7 @@ public class AccountManager {
         Log.d("BabixGO", "Temp-Verzeichnis erstellt: " + new File(tempDir).exists());
         
         // 4. REQUIRED FILE prüfen
-        String checkCommand = "[ -f " + escapeShellArg(REQUIRED_FILE) + " ] && echo 'exists' || echo 'not found'";
+        String checkCommand = "[ -f " + RootManager.escapeShellArg(REQUIRED_FILE) + " ] && echo 'exists' || echo 'not found'";
         String checkResult = RootManager.runRootCommand(checkCommand);
         
         if (!checkResult.contains("exists")) {
@@ -235,7 +235,7 @@ public class AccountManager {
         Log.d("BabixGO", "Required File gefunden, kopiere...");
         
         // 5. REQUIRED FILE kopieren
-        String cpCommand = "cp " + escapeShellArg(REQUIRED_FILE) + " " + escapeShellArg(tempDir + "account.dat");
+        String cpCommand = "cp " + RootManager.escapeShellArg(REQUIRED_FILE) + " " + RootManager.escapeShellArg(tempDir + "account.dat");
         String cpResult = RootManager.runRootCommand(cpCommand);
         
         boolean success = new File(tempDir + "account.dat").exists() && new File(tempDir + "account.dat").length() > 0;
@@ -256,12 +256,12 @@ public class AccountManager {
             String sourceFile = OPTIONAL_FILES[i];
             
             // Check if file exists
-            String fileCheckCommand = "[ -f " + escapeShellArg(sourceFile) + " ] && echo 'exists' || echo 'not found'";
+            String fileCheckCommand = "[ -f " + RootManager.escapeShellArg(sourceFile) + " ] && echo 'exists' || echo 'not found'";
             String fileCheckResult = RootManager.runRootCommand(fileCheckCommand);
             
             if (fileCheckResult.contains("exists")) {
                 String fileName = getFileName(sourceFile, i);
-                String fileCpCommand = "cp " + escapeShellArg(sourceFile) + " " + escapeShellArg(tempDir + fileName);
+                String fileCpCommand = "cp " + RootManager.escapeShellArg(sourceFile) + " " + RootManager.escapeShellArg(tempDir + fileName);
                 String fileCpResult = RootManager.runRootCommand(fileCpCommand);
                 
                 boolean copied = new File(tempDir + fileName).exists();
@@ -275,11 +275,11 @@ public class AccountManager {
         
         // 7. FB-Token kopieren (falls gewünscht)
         if (includeFbToken) {
-            String fbCheckCommand = "[ -f " + escapeShellArg(FB_TOKEN_FILE) + " ] && echo 'exists' || echo 'not found'";
+            String fbCheckCommand = "[ -f " + RootManager.escapeShellArg(FB_TOKEN_FILE) + " ] && echo 'exists' || echo 'not found'";
             String fbCheckResult = RootManager.runRootCommand(fbCheckCommand);
             
             if (fbCheckResult.contains("exists")) {
-                String fbCpCommand = "cp " + escapeShellArg(FB_TOKEN_FILE) + " " + escapeShellArg(tempDir + "fb_token.xml");
+                String fbCpCommand = "cp " + RootManager.escapeShellArg(FB_TOKEN_FILE) + " " + RootManager.escapeShellArg(tempDir + "fb_token.xml");
                 String fbCpResult = RootManager.runRootCommand(fbCpCommand);
                 
                 boolean copied = new File(tempDir + "fb_token.xml").exists();
@@ -301,7 +301,7 @@ public class AccountManager {
         
         // 10. ZIP erstellen (shell command)
         String zipFile = TEMP_PATH + accountName + ".zip";
-        String zipCommand = "cd " + escapeShellArg(tempDir) + " && zip -r " + escapeShellArg(zipFile) + " . 2>&1";
+        String zipCommand = "cd " + RootManager.escapeShellArg(tempDir) + " && zip -r " + RootManager.escapeShellArg(zipFile) + " . 2>&1";
         String zipResult = RootManager.runRootCommand(zipCommand);
         
         boolean zipSuccess = new File(zipFile).exists() && new File(zipFile).length() > 0;
@@ -386,7 +386,7 @@ public class AccountManager {
         }
         
         // 4. ZIP entpacken (shell command)
-        String unzipCommand = "unzip -o " + escapeShellArg(zipPath) + " -d " + escapeShellArg(tempDir) + " 2>&1";
+        String unzipCommand = "unzip -o " + RootManager.escapeShellArg(zipPath) + " -d " + RootManager.escapeShellArg(tempDir) + " 2>&1";
         String unzipResult = RootManager.runRootCommand(unzipCommand);
         
         boolean unzipSuccess = new File(tempDir + "account.dat").exists();
@@ -402,7 +402,7 @@ public class AccountManager {
         // Required file
         File accountDatFile = new File(tempDir + "account.dat");
         if (accountDatFile.exists()) {
-            String cpCommand = "cp " + escapeShellArg(tempDir + "account.dat") + " " + escapeShellArg(REQUIRED_FILE);
+            String cpCommand = "cp " + RootManager.escapeShellArg(tempDir + "account.dat") + " " + RootManager.escapeShellArg(REQUIRED_FILE);
             String cpResult = RootManager.runRootCommand(cpCommand);
             success = !cpResult.contains("Error") && !cpResult.contains("cannot");
         } else {
@@ -550,20 +550,8 @@ public class AccountManager {
             RootManager.deleteDirectoryWithRoot(tempDir);
         } else {
             // Use regular deletion for other directories
-            cleanupTempDirectory(tempDir);
+            deleteRecursive(new File(tempDir));
         }
-    }
-    
-    /**
-     * Helper method: Escape shell argument to prevent injection
-     * Uses single quotes and escapes any single quotes in the argument
-     */
-    private static String escapeShellArg(String arg) {
-        if (arg == null) {
-            return "''";
-        }
-        // Replace single quotes with '\'' (end quote, escaped quote, start quote)
-        return "'" + arg.replace("'", "'\\''") + "'";
     }
     
     /**
@@ -585,11 +573,11 @@ public class AccountManager {
             String targetFile = mapping[1];
             
             // Check if source file exists using shell command
-            String checkCommand = "[ -f " + escapeShellArg(sourceFile) + " ] && echo 'exists' || echo 'not found'";
+            String checkCommand = "[ -f " + RootManager.escapeShellArg(sourceFile) + " ] && echo 'exists' || echo 'not found'";
             String checkResult = RootManager.runRootCommand(checkCommand);
             
             if (checkResult.contains("exists")) {
-                String cpCommand = "cp " + escapeShellArg(sourceFile) + " " + escapeShellArg(targetFile);
+                String cpCommand = "cp " + RootManager.escapeShellArg(sourceFile) + " " + RootManager.escapeShellArg(targetFile);
                 RootManager.runRootCommand(cpCommand);
             }
         }
@@ -666,7 +654,7 @@ public class AccountManager {
         
         // 4. Kopiere Account-Datei - SIMPEL wie Original
         String destFile = tempDir + "account.dat";
-        String command = "cp " + escapeShellArg(accountFile) + " " + escapeShellArg(destFile);
+        String command = "cp " + RootManager.escapeShellArg(accountFile) + " " + RootManager.escapeShellArg(destFile);
         
         android.util.Log.d("BabixGO", "Executing: " + command);
         String result = RootManager.runRootCommand(command);
@@ -702,13 +690,13 @@ public class AccountManager {
         createFileList(tempDir, copiedFiles, includeFbToken);
         
         // 7. Berechtigungen (more restrictive than 777)
-        RootManager.runRootCommand("chmod -R 755 " + escapeShellArg(tempDir));
+        RootManager.runRootCommand("chmod -R 755 " + RootManager.escapeShellArg(tempDir));
         
         android.util.Log.d("BabixGO", "Erstelle ZIP...");
         
         // 8. ZIP erstellen (shell command)
         String zipFile = TEMP_PATH + accountName + ".zip";
-        String zipCommand = "cd " + escapeShellArg(tempDir) + " && zip -r " + escapeShellArg(zipFile) + " . 2>&1";
+        String zipCommand = "cd " + RootManager.escapeShellArg(tempDir) + " && zip -r " + RootManager.escapeShellArg(zipFile) + " . 2>&1";
         String zipResult = RootManager.runRootCommand(zipCommand);
         
         boolean zipSuccess = new File(zipFile).exists() && new File(zipFile).length() > 0;
@@ -759,7 +747,7 @@ public class AccountManager {
      * Helper method: Copy optional file
      */
     private static void copyOptionalFile(String source, String dest, List<String> fileList) {
-        String command = "cp " + escapeShellArg(source) + " " + escapeShellArg(dest) + " 2>&1";
+        String command = "cp " + RootManager.escapeShellArg(source) + " " + RootManager.escapeShellArg(dest) + " 2>&1";
         String result = RootManager.runRootCommand(command);
         
         if (new File(dest).exists()) {
@@ -783,7 +771,7 @@ public class AccountManager {
         
         for (String path : possiblePaths) {
             // SIMPLE CHECK: Versuche zu lesen
-            String cmd = "ls " + escapeShellArg(path) + " 2>&1";
+            String cmd = "ls " + RootManager.escapeShellArg(path) + " 2>&1";
             String result = RootManager.runRootCommand(cmd);
             
             if (!result.contains("No such file")) {
@@ -795,7 +783,7 @@ public class AccountManager {
         // Fallback: find (PACKAGE_NAME is safe, from constant)
         // Note: Wildcards must be outside quotes to be interpreted by shell
         String basePath = "/data/data/" + PACKAGE_NAME;
-        String cmd = "find " + escapeShellArg(basePath) + " -name '*WithBuddies.Services.User*.dat' 2>/dev/null | head -n 1";
+        String cmd = "find " + RootManager.escapeShellArg(basePath) + " -name '*WithBuddies.Services.User*.dat' 2>/dev/null | head -n 1";
         String result = RootManager.runRootCommand(cmd);
         
         if (result != null && result.trim().length() > 0 && !result.contains("Error")) {
