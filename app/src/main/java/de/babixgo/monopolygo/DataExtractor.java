@@ -10,58 +10,16 @@ public class DataExtractor {
     private static final String PACKAGE_NAME = "com.scopely.monopolygo";
     
     /**
+     * DEAKTIVIERT - Wird später implementiert
+     * UserID-Extraktion funktioniert aktuell nicht zuverlässig
+     * 
      * Extract the UserID from the app's SharedPreferences.
      * Tries multiple possible field names as fallbacks.
      * @return The UserID or null if not found
      */
     public static String extractUserId() {
-        String prefsFile = "/data/data/" + PACKAGE_NAME + 
-                          "/shared_prefs/" + PACKAGE_NAME + ".v2.playerprefs.xml";
-        
-        String content = RootManager.runRootCommand("cat \"" + prefsFile + "\"");
-        
-        if (content == null || content.contains("Error") || content.isEmpty()) {
-            return null;
-        }
-        
-        // Try multiple possible UserID field names
-        // Ordered from most specific to most general
-        String[] possibleFields = {
-            "Scopely.Attribution.UserId",
-            "ScopelyProfile.UserId",
-            "Scopely.UserId",
-            "UserId",
-            "user_id",
-            "userId",
-            "PlayerId",
-            "player_id",
-            "playerId",
-            "PlayerID",
-            "UserID"
-        };
-        
-        for (String fieldName : possibleFields) {
-            // Parse XML for the UserID field as string element
-            // Pattern is simple and anchored, no ReDoS risk with standard quantifiers
-            String regex = "<string\\s*name=\"" + Pattern.quote(fieldName) + "\"\\s*>(\\d+)</string>";
-            Pattern pattern = Pattern.compile(regex);
-            Matcher matcher = pattern.matcher(content);
-            
-            if (matcher.find()) {
-                return matcher.group(1);
-            }
-            
-            // Also try integer element format (Unity sometimes stores as int)
-            String intRegex = "<int\\s*name=\"" + Pattern.quote(fieldName) + "\"\\s*value=\"(\\d+)\"\\s*/>";
-            Pattern intPattern = Pattern.compile(intRegex);
-            Matcher intMatcher = intPattern.matcher(content);
-            
-            if (intMatcher.find()) {
-                return intMatcher.group(1);
-            }
-        }
-        
-        return null;
+        // TODO: Später implementieren wenn MonopolyGo-Struktur analysiert wurde
+        return "N/A";  // Temporär deaktiviert
     }
     
     /**
@@ -85,3 +43,8 @@ public class DataExtractor {
         return result.contains("exists");
     }
 }
+
+// ORIGINAL CODE DISABLED - Will be re-implemented later when MonopolyGo structure is analyzed
+// The original extractUserId() method tried to parse XML from SharedPreferences
+// It searched for multiple possible field names and used regex patterns
+// This functionality will be restored in a future update
