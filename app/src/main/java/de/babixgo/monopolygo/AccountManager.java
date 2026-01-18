@@ -509,7 +509,8 @@ public class AccountManager {
         
         // If directory exists, try to verify it's usable by testing file creation
         if (tempDirFile.exists()) {
-            File testFile = new File(tempDir, ".test_write");
+            // Use timestamp in filename to avoid race conditions
+            File testFile = new File(tempDir, ".test_write_" + System.currentTimeMillis());
             try {
                 if (testFile.createNewFile()) {
                     testFile.delete();
@@ -542,8 +543,8 @@ public class AccountManager {
             return false;
         }
         
-        // Verify we can actually write to it
-        File testFile = new File(tempDir, ".test_write");
+        // Verify we can actually write to it (use timestamp in filename to avoid race conditions)
+        File testFile = new File(tempDir, ".test_write_" + System.currentTimeMillis());
         try {
             if (!testFile.createNewFile()) {
                 Log.e("BabixGO", "Temp directory created but cannot write to it: " + tempDir);

@@ -237,15 +237,13 @@ public class RootManager {
         
         android.util.Log.d("BabixGO", "Creating directory with root: " + path);
         
-        // Create the directory and set permissions in one command sequence
+        // Create the directory and set permissions atomically using && operator
+        // This ensures chmod only runs if mkdir succeeds
         // Use 755 permissions (owner: rwx, group: r-x, others: r-x) for better security
-        String[] commands = {
-            "mkdir -p " + escapeShellArg(path),
-            "chmod 755 " + escapeShellArg(path)
-        };
+        String command = "mkdir -p " + escapeShellArg(path) + " && chmod 755 " + escapeShellArg(path);
         
         try {
-            Shell.Result result = Shell.cmd(commands).exec();
+            Shell.Result result = Shell.cmd(command).exec();
             
             if (!result.isSuccess()) {
                 android.util.Log.e("BabixGO", "Failed to create directory with root: " + result.getCode());
@@ -278,22 +276,31 @@ public class RootManager {
             return false;
         }
         
+        // Canonicalize the path to prevent path traversal attacks
+        String canonicalPath;
+        try {
+            canonicalPath = new java.io.File(path).getCanonicalPath();
+        } catch (Exception e) {
+            android.util.Log.e("BabixGO", "Failed to canonicalize path: " + path);
+            return false;
+        }
+        
         // Safety check: only allow deletion of directories under /data/local/tmp/
-        if (!path.startsWith("/data/local/tmp/")) {
+        if (!canonicalPath.startsWith("/data/local/tmp/")) {
             android.util.Log.e("BabixGO", "deleteDirectoryWithRoot only works on /data/local/tmp/ paths for safety");
             return false;
         }
         
         // Additional safety: ensure we're not deleting the base tmp directory itself
-        if (path.equals("/data/local/tmp") || path.equals("/data/local/tmp/")) {
+        if (canonicalPath.equals("/data/local/tmp") || canonicalPath.equals("/data/local/tmp/")) {
             android.util.Log.e("BabixGO", "Cannot delete the base /data/local/tmp directory");
             return false;
         }
         
-        android.util.Log.d("BabixGO", "Deleting directory with root: " + path);
+        android.util.Log.d("BabixGO", "Deleting directory with root: " + canonicalPath);
         
         // Use rm -rf to recursively delete the directory
-        String command = "rm -rf " + escapeShellArg(path);
+        String command = "rm -rf " + escapeShellArg(canonicalPath);
         
         try {
             Shell.Result result = Shell.cmd(command).exec();
@@ -306,7 +313,7 @@ public class RootManager {
                 return false;
             }
             
-            android.util.Log.d("BabixGO", "Directory deleted successfully: " + path);
+            android.util.Log.d("BabixGO", "Directory deleted successfully: " + canonicalPath);
             return true;
             
         } catch (Exception e) {
