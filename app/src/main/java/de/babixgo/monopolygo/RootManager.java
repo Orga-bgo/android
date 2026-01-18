@@ -203,6 +203,18 @@ public class RootManager {
     }
 
     /**
+     * Helper method: Escape shell argument to prevent injection
+     * Uses single quotes and escapes any single quotes in the argument
+     */
+    public static String escapeShellArg(String arg) {
+        if (arg == null) {
+            return "''";
+        }
+        // Replace single quotes with '\'' (end quote, escaped quote, start quote)
+        return "'" + arg.replace("'", "'\\''") + "'";
+    }
+
+    /**
      * Create a directory with root privileges.
      * This is necessary for directories like /data/local/tmp/ that require root access.
      * @param path The directory path to create
@@ -217,9 +229,10 @@ public class RootManager {
         android.util.Log.d("BabixGO", "Creating directory with root: " + path);
         
         // Create the directory and set permissions in one command sequence
+        // Use 755 permissions (owner: rwx, group: r-x, others: r-x) for better security
         String[] commands = {
-            "mkdir -p '" + path.replace("'", "'\\''") + "'",
-            "chmod 777 '" + path.replace("'", "'\\''") + "'"
+            "mkdir -p " + escapeShellArg(path),
+            "chmod 755 " + escapeShellArg(path)
         };
         
         try {
@@ -238,6 +251,44 @@ public class RootManager {
             
         } catch (Exception e) {
             android.util.Log.e("BabixGO", "Exception creating directory: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /**
+     * Delete a directory with root privileges.
+     * This is necessary for directories created with root that cannot be deleted by the app.
+     * @param path The directory path to delete
+     * @return true if successful, false otherwise
+     */
+    public static boolean deleteDirectoryWithRoot(String path) {
+        if (path == null || path.isEmpty()) {
+            android.util.Log.e("BabixGO", "Invalid path for directory deletion");
+            return false;
+        }
+        
+        android.util.Log.d("BabixGO", "Deleting directory with root: " + path);
+        
+        // Use rm -rf to recursively delete the directory
+        String command = "rm -rf " + escapeShellArg(path);
+        
+        try {
+            Shell.Result result = Shell.cmd(command).exec();
+            
+            if (!result.isSuccess()) {
+                android.util.Log.e("BabixGO", "Failed to delete directory with root: " + result.getCode());
+                for (String line : result.getErr()) {
+                    android.util.Log.e("BabixGO", "Error: " + line);
+                }
+                return false;
+            }
+            
+            android.util.Log.d("BabixGO", "Directory deleted successfully: " + path);
+            return true;
+            
+        } catch (Exception e) {
+            android.util.Log.e("BabixGO", "Exception deleting directory: " + e.getMessage());
             e.printStackTrace();
             return false;
         }
