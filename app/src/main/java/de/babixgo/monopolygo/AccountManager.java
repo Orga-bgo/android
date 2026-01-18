@@ -19,7 +19,7 @@ public class AccountManager {
     private static final String PARTNEREVENTS_PATH = BASE_PATH + "Partnerevents/";
     private static final String BACKUPS_PATH = BASE_PATH + "Backups/";
     
-    private static final String TEMP_PATH = "/data/local/tmp/";
+    private static final String TEMP_PATH = "/storage/emulated/0/MonopolyGo/Temp/";
     
     // MonopolyGo Dateipfade
     private static final String DATA_DIR = "/data/data/" + PACKAGE_NAME + "/";
@@ -173,10 +173,7 @@ public class AccountManager {
     }
     
     /**
-     * Erweiterte Backup-Funktion mit ZIP-Archivierung
-     * @param accountName Name des Accounts
-     * @param includeFbToken Soll FB-Token gesichert werden?
-     * @return true wenn erfolgreich
+     * Erweiterte Backup-Funktion mit Java-ZIP
      */
     public static boolean backupAccountExtended(String accountName, boolean includeFbToken) {
         // Validate accountName to prevent command injection
@@ -185,98 +182,115 @@ public class AccountManager {
             return false;
         }
         
-        // 1. App stoppen für konsistente Daten
+        // 1. App stoppen
         forceStopApp();
         
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
-            Log.e(TAG, "Sleep interrupted during backup", e);
+            e.printStackTrace();
         }
         
-        // 2. Temporäres Verzeichnis erstellen
+        // 2. Temporäres Verzeichnis erstellen (im öffentlichen Bereich)
         String tempDir = TEMP_PATH + accountName + "/";
-        RootManager.runRootCommand("mkdir -p \"" + tempDir + "\"");
+        File tempDirFile = new File(tempDir);
         
-        // 3. REQUIRED FILE kopieren (muss existieren)
-        if (!fileExists(REQUIRED_FILE)) {
-            RootManager.runRootCommand("rm -rf \"" + tempDir + "\"");
+        // Altes Temp-Verzeichnis löschen falls vorhanden
+        if (tempDirFile.exists()) {
+            deleteRecursive(tempDirFile);
+        }
+        
+        tempDirFile.mkdirs();
+        
+        // 3. REQUIRED FILE kopieren
+        if (!ZipManager.fileExistsWithRoot(REQUIRED_FILE)) {
+            deleteRecursive(tempDirFile);
             return false;
         }
         
-        String result = RootManager.runRootCommand(
-            "cp \"" + REQUIRED_FILE + "\" \"" + tempDir + "account.dat\""
+        boolean success = ZipManager.copyFileWithRoot(
+            REQUIRED_FILE, 
+            tempDir + "account.dat"
         );
         
-        if (result.contains("Error") || result.contains("cannot")) {
-            RootManager.runRootCommand("rm -rf \"" + tempDir + "\"");
+        if (!success) {
+            deleteRecursive(tempDirFile);
             return false;
         }
         
-        // 4. Optionale Dateien kopieren (nur wenn vorhanden)
+        // 4. Optionale Dateien kopieren
         List<String> copiedFiles = new ArrayList<>();
         copiedFiles.add("account.dat");
         
         for (int i = 0; i < OPTIONAL_FILES.length; i++) {
             String sourceFile = OPTIONAL_FILES[i];
-            if (fileExists(sourceFile)) {
+            if (ZipManager.fileExistsWithRoot(sourceFile)) {
                 String fileName = getFileName(sourceFile, i);
-                String copyResult = RootManager.runRootCommand(
-                    "cp \"" + sourceFile + "\" \"" + tempDir + fileName + "\""
+                boolean copied = ZipManager.copyFileWithRoot(
+                    sourceFile, 
+                    tempDir + fileName
                 );
                 
-                if (!copyResult.contains("Error")) {
+                if (copied) {
                     copiedFiles.add(fileName);
                 }
             }
         }
         
-        // 5. FB-Token kopieren (falls gewünscht und vorhanden)
-        if (includeFbToken && fileExists(FB_TOKEN_FILE)) {
-            String copyResult = RootManager.runRootCommand(
-                "cp \"" + FB_TOKEN_FILE + "\" \"" + tempDir + "fb_token.xml\""
+        // 5. FB-Token kopieren (falls gewünscht)
+        if (includeFbToken && ZipManager.fileExistsWithRoot(FB_TOKEN_FILE)) {
+            boolean copied = ZipManager.copyFileWithRoot(
+                FB_TOKEN_FILE, 
+                tempDir + "fb_token.xml"
             );
             
-            if (!copyResult.contains("Error")) {
+            if (copied) {
                 copiedFiles.add("fb_token.xml");
             }
         }
         
-        // 6. Dateiliste für Dokumentation erstellen
+        // 6. Backup-Info erstellen
         createFileList(tempDir, copiedFiles, includeFbToken);
         
-        // 7. ZIP-Archiv erstellen
-        String zipFile = TEMP_PATH + accountName + ".zip";
-        String zipResult = RootManager.runRootCommand(
-            "cd \"" + tempDir + "\" && zip -r \"" + zipFile + "\" ."
-        );
+        // 7. Berechtigungen für Temp-Dateien setzen (lesbar für App)
+        RootManager.runRootCommand("chmod -R 777 \"" + tempDir + "\"");
         
-        if (zipResult.contains("Error") || !fileExists(zipFile)) {
-            RootManager.runRootCommand("rm -rf \"" + tempDir + "\"");
+        // 8. ZIP erstellen (Java-basiert, kein externes Tool)
+        String zipFile = TEMP_PATH + accountName + ".zip";
+        boolean zipSuccess = ZipManager.zipDirectory(tempDir, zipFile);
+        
+        if (!zipSuccess) {
+            deleteRecursive(tempDirFile);
             return false;
         }
         
-        // 8. Zielverzeichnis erstellen
+        // 9. Zielverzeichnis erstellen
         String targetDir = ACCOUNTS_EIGENE + accountName + "/";
         File target = new File(targetDir);
         if (!target.exists()) {
             target.mkdirs();
         }
         
-        // 9. ZIP in finales Verzeichnis verschieben
+        // 10. ZIP in finales Verzeichnis verschieben
         String finalZip = targetDir + accountName + ".zip";
-        String moveResult = RootManager.runRootCommand(
-            "cp \"" + zipFile + "\" \"" + finalZip + "\" && " +
-            "chmod 644 \"" + finalZip + "\""
-        );
+        File zipFileObj = new File(zipFile);
+        File finalZipObj = new File(finalZip);
         
-        // 10. Aufräumen
-        RootManager.runRootCommand("rm -rf \"" + tempDir + "\"");
-        RootManager.runRootCommand("rm -f \"" + zipFile + "\"");
+        // Alte ZIP löschen falls vorhanden
+        if (finalZipObj.exists()) {
+            finalZipObj.delete();
+        }
         
-        // 11. Erfolgsprüfung
-        File finalFile = new File(finalZip);
-        return finalFile.exists() && finalFile.length() > 0;
+        boolean moved = zipFileObj.renameTo(finalZipObj);
+        
+        // 11. Aufräumen
+        deleteRecursive(tempDirFile);
+        if (zipFileObj.exists()) {
+            zipFileObj.delete();
+        }
+        
+        // 12. Erfolgsprüfung
+        return moved && finalZipObj.exists() && finalZipObj.length() > 0;
     }
     
     /**
@@ -308,15 +322,20 @@ public class AccountManager {
         
         // 3. Temporäres Verzeichnis erstellen
         String tempDir = TEMP_PATH + accountName + "_restore/";
-        RootManager.runRootCommand("mkdir -p \"" + tempDir + "\"");
+        File tempDirFile = new File(tempDir);
         
-        // 4. ZIP entpacken
-        String unzipResult = RootManager.runRootCommand(
-            "unzip -o \"" + zipPath + "\" -d \"" + tempDir + "\""
-        );
+        // Altes Temp-Verzeichnis löschen falls vorhanden
+        if (tempDirFile.exists()) {
+            deleteRecursive(tempDirFile);
+        }
         
-        if (unzipResult.contains("Error")) {
-            RootManager.runRootCommand("rm -rf \"" + tempDir + "\"");
+        tempDirFile.mkdirs();
+        
+        // 4. ZIP entpacken (Java-basiert)
+        boolean unzipSuccess = ZipManager.unzipArchive(zipPath, tempDir);
+        
+        if (!unzipSuccess) {
+            deleteRecursive(tempDirFile);
             return false;
         }
         
@@ -324,7 +343,8 @@ public class AccountManager {
         boolean success = true;
         
         // Required file
-        if (fileExists(tempDir + "account.dat")) {
+        File accountDat = new File(tempDir + "account.dat");
+        if (accountDat.exists()) {
             String result = RootManager.runRootCommand(
                 "cp \"" + tempDir + "account.dat\" \"" + REQUIRED_FILE + "\""
             );
@@ -344,9 +364,29 @@ public class AccountManager {
         }
         
         // 6. Aufräumen
-        RootManager.runRootCommand("rm -rf \"" + tempDir + "\"");
+        deleteRecursive(tempDirFile);
         
         return success;
+    }
+    
+    /**
+     * Hilfsmethode: Rekursives Löschen von Verzeichnissen
+     */
+    private static boolean deleteRecursive(File fileOrDirectory) {
+        if (fileOrDirectory == null || !fileOrDirectory.exists()) {
+            return false;
+        }
+        
+        if (fileOrDirectory.isDirectory()) {
+            File[] children = fileOrDirectory.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deleteRecursive(child);
+                }
+            }
+        }
+        
+        return fileOrDirectory.delete();
     }
     
     /**
