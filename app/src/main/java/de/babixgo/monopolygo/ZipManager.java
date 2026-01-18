@@ -149,30 +149,37 @@ public class ZipManager {
     
     /**
      * Copy file with root privileges
-     * VERBESSERT: Nutzt cat-Umleitung statt cp
-     * @param source Source file path
-     * @param dest Destination file path
-     * @return true if successful
+     * VERBESSERT: Besseres Error Handling
      */
     public static boolean copyFileWithRoot(String source, String dest) {
         android.util.Log.d("BabixGO", "Kopiere mit Root: " + source + " -> " + dest);
         
-        // Methode 1: cat > Umleitung (funktioniert besser auf manchen Geräten)
+        // Methode 1: cat mit Umleitung
         String command = "cat \"" + source + "\" > \"" + dest + "\" 2>&1";
         String result = RootManager.runRootCommand(command);
         
-        android.util.Log.d("BabixGO", "Copy result: " + result);
+        android.util.Log.d("BabixGO", "cat result: " + result);
         
-        // Prüfe ob Ziel existiert (mit Root)
-        boolean destExists = fileExistsWithRoot(dest);
+        // Prüfe Ziel
+        File destFile = new File(dest);
+        boolean destExists = destFile.exists();
         
         if (!destExists) {
-            // Fallback: Versuche mit cp
-            android.util.Log.d("BabixGO", "Fallback: Versuche cp");
+            // Fallback: dd (Block-Kopie)
+            android.util.Log.d("BabixGO", "Fallback: Versuche dd");
+            command = "dd if=\"" + source + "\" of=\"" + dest + "\" 2>&1";
+            result = RootManager.runRootCommand(command);
+            android.util.Log.d("BabixGO", "dd result: " + result);
+            destExists = new File(dest).exists();
+        }
+        
+        if (!destExists) {
+            // Fallback 2: cp
+            android.util.Log.d("BabixGO", "Fallback 2: Versuche cp");
             command = "cp -f \"" + source + "\" \"" + dest + "\" 2>&1";
             result = RootManager.runRootCommand(command);
-            android.util.Log.d("BabixGO", "CP result: " + result);
-            destExists = fileExistsWithRoot(dest);
+            android.util.Log.d("BabixGO", "cp result: " + result);
+            destExists = new File(dest).exists();
         }
         
         android.util.Log.d("BabixGO", "Datei kopiert: " + destExists);
@@ -181,23 +188,23 @@ public class ZipManager {
     
     /**
      * Check if file exists (with root)
-     * VERBESSERT: Mehrere Prüfmethoden
+     * VERBESSERT: Nutzt [ ] statt test (robuster)
      */
     public static boolean fileExistsWithRoot(String path) {
         android.util.Log.d("BabixGO", "Prüfe Datei mit Root: " + path);
         
-        // Methode 1: test -f
+        // Methode 1: [ -f ] (POSIX-kompatibel, funktioniert überall)
         String result1 = RootManager.runRootCommand(
-            "test -f \"" + path + "\" && echo 'EXISTS' || echo 'NOT_FOUND'"
+            "[ -f \"" + path + "\" ] && echo 'EXISTS' || echo 'NOT_FOUND'"
         );
-        android.util.Log.d("BabixGO", "Test -f result: '" + result1 + "'");
+        android.util.Log.d("BabixGO", "[ -f ] result: '" + result1 + "'");
         
         if (result1 != null && result1.trim().contains("EXISTS")) {
-            android.util.Log.d("BabixGO", "✓ Datei existiert (test -f)");
+            android.util.Log.d("BabixGO", "✓ Datei existiert ([ -f ])");
             return true;
         }
         
-        // Methode 2: ls (als Fallback)
+        // Methode 2: ls als Fallback
         String result2 = RootManager.runRootCommand("ls -la \"" + path + "\" 2>&1");
         android.util.Log.d("BabixGO", "ls result: " + result2);
         

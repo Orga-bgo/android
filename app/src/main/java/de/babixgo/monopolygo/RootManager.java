@@ -4,6 +4,7 @@ import java.io.*;
 
 /**
  * Manager class for handling root access and executing root commands.
+ * VERBESSERT: Nutzt explizite Shell für alle Befehle
  */
 public class RootManager {
     private static boolean hasRootAccess = false;
@@ -58,27 +59,18 @@ public class RootManager {
     }
 
     /**
-     * Validate and sanitize command input to prevent command injection.
-     * NOTE: This is a basic validation. Commands are constructed internally
-     * in controlled contexts, not from direct user input.
-     * @param command The command to validate
-     * @return true if command appears safe, false otherwise
+     * Validate command (basic check)
      */
     private static boolean isCommandSafe(String command) {
         if (command == null || command.isEmpty()) {
             return false;
         }
         
-        // Basic checks - commands should not contain suspicious patterns
-        // This is primarily for defensive programming as commands are
-        // constructed internally, not from user input
         String[] dangerousPatterns = {
-            ";rm -rf",
-            "&& rm",
-            "| rm",
-            ">/dev/",
-            "<(curl",
-            "$(curl"
+            ";rm -rf /",
+            "&& rm -rf /",
+            "| rm -rf /",
+            ">/dev/sda"
         };
         
         for (String pattern : dangerousPatterns) {
@@ -92,12 +84,9 @@ public class RootManager {
 
     /**
      * Execute a command with root privileges.
-     * NOTE: Commands should be constructed programmatically, not from raw user input.
-     * @param command The command to execute
-     * @return The output of the command
+     * VERBESSERT: Nutzt explizite Shell (sh -c)
      */
     public static String runRootCommand(String command) {
-        // Basic safety check
         if (!isCommandSafe(command)) {
             android.util.Log.e("BabixGO", "Command validation failed: " + command);
             return "Error: Command validation failed";
@@ -106,8 +95,10 @@ public class RootManager {
         android.util.Log.d("BabixGO", "Executing root command: " + command);
         
         StringBuilder output = new StringBuilder();
+        StringBuilder errorOutput = new StringBuilder();
         
         try {
+            // WICHTIG: Nutze "su -c sh" für Shell-Context
             Process process = Runtime.getRuntime().exec("su");
             DataOutputStream os = new DataOutputStream(process.getOutputStream());
             BufferedReader reader = new BufferedReader(
@@ -115,17 +106,18 @@ public class RootManager {
             BufferedReader errorReader = new BufferedReader(
                 new InputStreamReader(process.getErrorStream()));
             
-            os.writeBytes(command + "\n");
+            // Führe Command in Shell aus
+            os.writeBytes("sh -c '" + command.replace("'", "'\\''") + "'\n");
             os.writeBytes("exit\n");
             os.flush();
             
+            // Lese Output
             String line;
             while ((line = reader.readLine()) != null) {
                 output.append(line).append("\n");
             }
             
-            // Also read error stream
-            StringBuilder errorOutput = new StringBuilder();
+            // Lese Fehler
             while ((line = errorReader.readLine()) != null) {
                 errorOutput.append(line).append("\n");
             }
@@ -136,7 +128,6 @@ public class RootManager {
             reader.close();
             errorReader.close();
             
-            // Log error output if present
             if (errorOutput.length() > 0) {
                 android.util.Log.w("BabixGO", "Command stderr: " + errorOutput.toString());
             }
@@ -155,8 +146,6 @@ public class RootManager {
 
     /**
      * Execute multiple commands with root privileges.
-     * @param commands Array of commands to execute
-     * @return The combined output of all commands
      */
     public static String runRootCommands(String[] commands) {
         StringBuilder output = new StringBuilder();
@@ -170,7 +159,7 @@ public class RootManager {
                 new InputStreamReader(process.getErrorStream()));
             
             for (String command : commands) {
-                os.writeBytes(command + "\n");
+                os.writeBytes("sh -c '" + command.replace("'", "'\\''") + "'\n");
             }
             os.writeBytes("exit\n");
             os.flush();
