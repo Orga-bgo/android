@@ -211,23 +211,16 @@ public class AccountManager {
         
         // 3. Temporäres Verzeichnis erstellen (im öffentlichen Bereich)
         String tempDir = TEMP_PATH + accountName + "/";
-        File tempDirFile = new File(tempDir);
         
         Log.d("BabixGO", "Erstelle Temp-Verzeichnis: " + tempDir);
         
-        // Altes Temp-Verzeichnis löschen falls vorhanden
-        if (tempDirFile.exists()) {
-            Log.d("BabixGO", "Lösche altes Temp-Verzeichnis");
-            deleteRecursive(tempDirFile);
-        }
-        
-        boolean dirCreated = tempDirFile.mkdirs();
-        if (!dirCreated && !tempDirFile.exists()) {
+        // Create temp directory with root privileges
+        if (!ensureTempDirectory(tempDir)) {
             Log.e("BabixGO", "FEHLER: Temp-Verzeichnis konnte nicht erstellt werden!");
             return false;
         }
         
-        Log.d("BabixGO", "Temp-Verzeichnis erstellt: " + tempDirFile.exists());
+        Log.d("BabixGO", "Temp-Verzeichnis erstellt: " + new File(tempDir).exists());
         
         // 4. REQUIRED FILE prüfen
         String checkCommand = "[ -f " + escapeShellArg(REQUIRED_FILE) + " ] && echo 'exists' || echo 'not found'";
@@ -235,7 +228,7 @@ public class AccountManager {
         
         if (!checkResult.contains("exists")) {
             Log.e("BabixGO", "FEHLER: Required File nicht gefunden: " + REQUIRED_FILE);
-            deleteRecursive(tempDirFile);
+            deleteRecursive(new File(tempDir));
             return false;
         }
         
@@ -249,7 +242,7 @@ public class AccountManager {
         
         if (!success) {
             Log.e("BabixGO", "FEHLER: Kopieren der Account-Datei fehlgeschlagen: " + cpResult);
-            deleteRecursive(tempDirFile);
+            deleteRecursive(new File(tempDir));
             return false;
         }
         
@@ -315,7 +308,7 @@ public class AccountManager {
         
         if (!zipSuccess) {
             Log.e("BabixGO", "FEHLER: ZIP-Erstellung fehlgeschlagen: " + zipResult);
-            deleteRecursive(tempDirFile);
+            deleteRecursive(new File(tempDir));
             return false;
         }
         
@@ -343,7 +336,7 @@ public class AccountManager {
         Log.d("BabixGO", "ZIP verschoben: " + moved + " nach " + finalZip);
         
         // 13. Aufräumen
-        deleteRecursive(tempDirFile);
+        deleteRecursive(new File(tempDir));
         if (zipFileObj.exists()) {
             zipFileObj.delete();
         }
@@ -386,14 +379,11 @@ public class AccountManager {
         
         // 3. Temporäres Verzeichnis erstellen
         String tempDir = TEMP_PATH + accountName + "_restore/";
-        File tempDirFile = new File(tempDir);
         
-        // Altes Temp-Verzeichnis löschen falls vorhanden
-        if (tempDirFile.exists()) {
-            deleteRecursive(tempDirFile);
+        // Create temp directory with root privileges
+        if (!ensureTempDirectory(tempDir)) {
+            return false;
         }
-        
-        tempDirFile.mkdirs();
         
         // 4. ZIP entpacken (shell command)
         String unzipCommand = "unzip -o " + escapeShellArg(zipPath) + " -d " + escapeShellArg(tempDir) + " 2>&1";
@@ -402,7 +392,7 @@ public class AccountManager {
         boolean unzipSuccess = new File(tempDir + "account.dat").exists();
         
         if (!unzipSuccess) {
-            deleteRecursive(tempDirFile);
+            deleteRecursive(new File(tempDir));
             return false;
         }
         
@@ -426,7 +416,7 @@ public class AccountManager {
         }
         
         // 6. Aufräumen
-        deleteRecursive(tempDirFile);
+        deleteRecursive(new File(tempDir));
         
         return success;
     }
@@ -508,6 +498,44 @@ public class AccountManager {
         // Only allow alphanumeric characters, underscores, hyphens, and dots
         // This prevents shell metacharacters from being injected
         return accountName.matches("^[a-zA-Z0-9._-]+$");
+    }
+    
+    /**
+     * Hilfsmethode: Ensure temp directory exists with root privileges
+     * The /data/local/tmp/ directory requires root access to create subdirectories
+     */
+    private static boolean ensureTempDirectory(String tempDir) {
+        File tempDirFile = new File(tempDir);
+        
+        // If directory already exists and is writable, we're done
+        if (tempDirFile.exists() && tempDirFile.canWrite()) {
+            Log.d("BabixGO", "Temp directory already exists and is writable: " + tempDir);
+            return true;
+        }
+        
+        // Delete old directory if it exists but is not writable
+        if (tempDirFile.exists()) {
+            Log.d("BabixGO", "Removing old temp directory: " + tempDir);
+            deleteRecursive(tempDirFile);
+        }
+        
+        // Create directory using root privileges
+        Log.d("BabixGO", "Creating temp directory with root: " + tempDir);
+        boolean created = RootManager.createDirectoryWithRoot(tempDir);
+        
+        if (!created) {
+            Log.e("BabixGO", "Failed to create temp directory with root: " + tempDir);
+            return false;
+        }
+        
+        // Verify directory was created
+        if (!tempDirFile.exists()) {
+            Log.e("BabixGO", "Temp directory does not exist after creation: " + tempDir);
+            return false;
+        }
+        
+        Log.d("BabixGO", "Temp directory created successfully: " + tempDir);
+        return true;
     }
     
     /**
@@ -601,13 +629,9 @@ public class AccountManager {
         
         // 2. Temp-Verzeichnis erstellen
         String tempDir = TEMP_PATH + accountName + "/";
-        File tempDirFile = new File(tempDir);
         
-        if (tempDirFile.exists()) {
-            deleteRecursive(tempDirFile);
-        }
-        
-        if (!tempDirFile.mkdirs()) {
+        // Create temp directory with root privileges
+        if (!ensureTempDirectory(tempDir)) {
             android.util.Log.e("BabixGO", "Temp-Verzeichnis konnte nicht erstellt werden");
             return false;
         }
@@ -618,7 +642,7 @@ public class AccountManager {
         String accountFile = findAccountFile();
         if (accountFile == null) {
             android.util.Log.e("BabixGO", "Account-Datei nicht gefunden");
-            deleteRecursive(tempDirFile);
+            deleteRecursive(new File(tempDir));
             return false;
         }
         
@@ -636,7 +660,7 @@ public class AccountManager {
         File copiedFile = new File(destFile);
         if (!copiedFile.exists() || copiedFile.length() == 0) {
             android.util.Log.e("BabixGO", "Kopieren fehlgeschlagen");
-            deleteRecursive(tempDirFile);
+            deleteRecursive(new File(tempDir));
             return false;
         }
         
@@ -675,7 +699,7 @@ public class AccountManager {
         
         if (!zipSuccess) {
             android.util.Log.e("BabixGO", "ZIP-Erstellung fehlgeschlagen: " + zipResult);
-            deleteRecursive(tempDirFile);
+            deleteRecursive(new File(tempDir));
             return false;
         }
         
@@ -700,7 +724,7 @@ public class AccountManager {
         boolean moved = zipFileObj.renameTo(finalZipObj);
         
         // 11. Cleanup
-        deleteRecursive(tempDirFile);
+        deleteRecursive(new File(tempDir));
         if (zipFileObj.exists()) {
             zipFileObj.delete();
         }

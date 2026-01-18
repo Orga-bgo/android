@@ -201,4 +201,45 @@ public class RootManager {
     public static boolean hasRootAccess() {
         return hasRootAccess;
     }
+
+    /**
+     * Create a directory with root privileges.
+     * This is necessary for directories like /data/local/tmp/ that require root access.
+     * @param path The directory path to create
+     * @return true if successful, false otherwise
+     */
+    public static boolean createDirectoryWithRoot(String path) {
+        if (path == null || path.isEmpty()) {
+            android.util.Log.e("BabixGO", "Invalid path for directory creation");
+            return false;
+        }
+        
+        android.util.Log.d("BabixGO", "Creating directory with root: " + path);
+        
+        // Create the directory and set permissions in one command sequence
+        String[] commands = {
+            "mkdir -p '" + path.replace("'", "'\\''") + "'",
+            "chmod 777 '" + path.replace("'", "'\\''") + "'"
+        };
+        
+        try {
+            Shell.Result result = Shell.cmd(commands).exec();
+            
+            if (!result.isSuccess()) {
+                android.util.Log.e("BabixGO", "Failed to create directory with root: " + result.getCode());
+                for (String line : result.getErr()) {
+                    android.util.Log.e("BabixGO", "Error: " + line);
+                }
+                return false;
+            }
+            
+            android.util.Log.d("BabixGO", "Directory created successfully: " + path);
+            return true;
+            
+        } catch (Exception e) {
+            android.util.Log.e("BabixGO", "Exception creating directory: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
 }
