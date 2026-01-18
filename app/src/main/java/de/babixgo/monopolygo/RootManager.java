@@ -58,6 +58,9 @@ public class RootManager {
             // IMPORTANT: Shell.isAppGrantedRoot() only checks status, doesn't request root!
             // To actually trigger the root permission dialog, we need to create a shell.
             // This will show the Magisk/SuperSU/KernelSU permission dialog to the user.
+            // 
+            // Note: libsu automatically caches the "main shell" - subsequent calls to
+            // Shell.getShell() or Shell.cmd() will reuse this cached instance.
             Shell shell = Shell.getShell();
             
             // Now check if root was granted
