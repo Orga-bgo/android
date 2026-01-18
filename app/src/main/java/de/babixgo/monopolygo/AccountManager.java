@@ -49,17 +49,11 @@ public class AccountManager {
      * Initialize the required directories on the device.
      */
     public static void initializeDirectories() {
-        createDirectory(ACCOUNTS_EIGENE);
-        createDirectory(ACCOUNTS_KUNDEN);
-        createDirectory(PARTNEREVENTS_PATH);
-        createDirectory(BACKUPS_PATH);
-    }
-    
-    private static void createDirectory(String path) {
-        File dir = new File(path);
-        if (!dir.exists()) {
-            dir.mkdirs();
-        }
+        new File(ACCOUNTS_EIGENE).mkdirs();
+        new File(ACCOUNTS_KUNDEN).mkdirs();
+        new File(PARTNEREVENTS_PATH).mkdirs();
+        new File(BACKUPS_PATH).mkdirs();
+        new File(TEMP_PATH).mkdirs();
     }
     
     /**
@@ -343,14 +337,12 @@ public class AccountManager {
         boolean success = true;
         
         // Required file
-        File accountDat = new File(tempDir + "account.dat");
-        if (accountDat.exists()) {
-            String result = RootManager.runRootCommand(
-                "cp \"" + tempDir + "account.dat\" \"" + REQUIRED_FILE + "\""
+        File accountDatFile = new File(tempDir + "account.dat");
+        if (accountDatFile.exists()) {
+            success = ZipManager.copyFileWithRoot(
+                tempDir + "account.dat",
+                REQUIRED_FILE
             );
-            if (result.contains("Error")) {
-                success = false;
-            }
         } else {
             success = false;
         }
@@ -358,8 +350,6 @@ public class AccountManager {
         // Optionale Dateien
         if (success) {
             restoreOptionalFiles(tempDir);
-            
-            // Berechtigungen setzen
             setProperPermissions();
         }
         
@@ -413,27 +403,23 @@ public class AccountManager {
      * Hilfsmethode: Dateiliste erstellen
      */
     private static void createFileList(String tempDir, List<String> files, boolean fbIncluded) {
-        StringBuilder fileList = new StringBuilder();
-        fileList.append("=== Backup File List ===\n");
-        fileList.append("Date: ").append(new java.util.Date().toString()).append("\n");
-        fileList.append("FB-Token included: ").append(fbIncluded ? "YES" : "NO").append("\n");
-        fileList.append("\nFiles:\n");
-        
-        for (String file : files) {
-            fileList.append("- ").append(file).append("\n");
-        }
-        
-        // Write file using Java instead of shell echo to avoid command injection
-        File infoFile = new File(tempDir + "backup_info.txt");
-        try (java.io.FileWriter writer = new java.io.FileWriter(infoFile)) {
-            writer.write(fileList.toString());
-            // Set permissions via root after closing the file
+        try {
+            StringBuilder fileList = new StringBuilder();
+            fileList.append("=== Backup File List ===\n");
+            fileList.append("Date: ").append(new java.util.Date().toString()).append("\n");
+            fileList.append("FB-Token included: ").append(fbIncluded ? "YES" : "NO").append("\n");
+            fileList.append("\nFiles:\n");
+            
+            for (String file : files) {
+                fileList.append("- ").append(file).append("\n");
+            }
+            
+            java.io.FileWriter fw = new java.io.FileWriter(tempDir + "backup_info.txt");
+            fw.write(fileList.toString());
+            fw.close();
         } catch (Exception e) {
-            Log.e(TAG, "Failed to create backup info file", e);
-            return;
+            e.printStackTrace();
         }
-        // Set permissions via root
-        RootManager.runRootCommand("chmod 644 \"" + tempDir + "backup_info.txt\"");
     }
     
     /**
@@ -467,12 +453,13 @@ public class AccountManager {
         };
         
         for (String[] mapping : fileMappings) {
-            String sourceFile = tempDir + mapping[0];
+            File sourceFile = new File(tempDir + mapping[0]);
             String targetFile = mapping[1];
             
-            if (fileExists(sourceFile)) {
-                RootManager.runRootCommand(
-                    "cp \"" + sourceFile + "\" \"" + targetFile + "\""
+            if (sourceFile.exists()) {
+                ZipManager.copyFileWithRoot(
+                    sourceFile.getAbsolutePath(),
+                    targetFile
                 );
             }
         }
