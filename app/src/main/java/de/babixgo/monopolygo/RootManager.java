@@ -1,36 +1,39 @@
 package de.babixgo.monopolygo;
 
-import java.io.*;
+import com.topjohnwu.superuser.Shell;
+import java.util.List;
 
 /**
  * Manager class for handling root access and executing root commands.
- * VERBESSERT: Nutzt explizite Shell für alle Befehle
+ * FIXED: Uses libsu library for proper root handling on all Android versions
+ * 
+ * This fixes issues on Android 10+ where manual su execution with sh -c wrapper
+ * fails due to SELinux restrictions and compatibility issues with newer Magisk versions.
  */
 public class RootManager {
     private static boolean hasRootAccess = false;
     private static boolean rootChecked = false;
-
-    /**
-     * Check if the device is rooted.
-     */
-    public static boolean isRooted() {
-        String[] paths = {
-            "/system/bin/su",
-            "/system/xbin/su",
-            "/sbin/su",
-            "/su/bin/su"
-        };
-        
-        for (String path : paths) {
-            if (new File(path).exists()) {
-                return true;
-            }
-        }
-        return false;
+    
+    static {
+        // Configure libsu Shell
+        Shell.enableVerboseLogging = android.util.Log.isLoggable("BabixGO", android.util.Log.DEBUG);
+        Shell.setDefaultBuilder(Shell.Builder.create()
+            .setFlags(Shell.FLAG_REDIRECT_STDERR)
+            .setTimeout(10));
     }
 
     /**
-     * Request root access from SuperSU/Magisk.
+     * Check if the device is rooted.
+     * Uses libsu's built-in root detection which is more reliable.
+     */
+    public static boolean isRooted() {
+        // libsu handles root detection properly across all Android versions
+        return Shell.isAppGrantedRoot() != null && Shell.isAppGrantedRoot();
+    }
+
+    /**
+     * Request root access from SuperSU/Magisk/KernelSU.
+     * Uses libsu which properly handles root requests on all Android versions.
      * @return true if root access is granted, false otherwise
      */
     public static boolean requestRoot() {
@@ -39,19 +42,16 @@ public class RootManager {
         }
         
         try {
-            Process process = Runtime.getRuntime().exec("su");
-            DataOutputStream os = new DataOutputStream(process.getOutputStream());
-            os.writeBytes("echo 'Root Granted'\n");
-            os.writeBytes("exit\n");
-            os.flush();
-            
-            process.waitFor();
-            hasRootAccess = (process.exitValue() == 0);
+            // libsu automatically handles root request dialog and compatibility
+            // Works with Magisk 24+, KernelSU, and older SuperSU
+            Boolean granted = Shell.isAppGrantedRoot();
+            hasRootAccess = granted != null && granted;
             rootChecked = true;
             
-            os.close();
+            android.util.Log.d("BabixGO", "Root access: " + (hasRootAccess ? "granted" : "denied"));
             return hasRootAccess;
         } catch (Exception e) {
+            android.util.Log.e("BabixGO", "Root request error: " + e.getMessage());
             hasRootAccess = false;
             rootChecked = true;
             return false;
@@ -84,7 +84,8 @@ public class RootManager {
 
     /**
      * Execute a command with root privileges.
-     * VERBESSERT: Nutzt explizite Shell (sh -c)
+     * FIXED: Uses libsu Shell API which properly handles shell context on all Android versions.
+     * This eliminates the need for manual sh -c wrapping and fixes compatibility issues.
      */
     public static String runRootCommand(String command) {
         if (!isCommandSafe(command)) {
@@ -94,48 +95,35 @@ public class RootManager {
         
         android.util.Log.d("BabixGO", "Executing root command: " + command);
         
-        StringBuilder output = new StringBuilder();
-        StringBuilder errorOutput = new StringBuilder();
-        
         try {
-            // WICHTIG: Nutze "su -c sh" für Shell-Context
-            Process process = Runtime.getRuntime().exec("su");
-            DataOutputStream os = new DataOutputStream(process.getOutputStream());
-            BufferedReader reader = new BufferedReader(
-                new InputStreamReader(process.getInputStream()));
-            BufferedReader errorReader = new BufferedReader(
-                new InputStreamReader(process.getErrorStream()));
+            // libsu automatically provides proper shell context
+            // No need for manual sh -c wrapping - libsu handles this internally
+            Shell.Result result = Shell.cmd(command).exec();
             
-            // Führe Command in Shell aus
-            os.writeBytes("sh -c '" + command.replace("'", "'\\''") + "'\n");
-            os.writeBytes("exit\n");
-            os.flush();
-            
-            // Lese Output
-            String line;
-            while ((line = reader.readLine()) != null) {
+            // Get output
+            StringBuilder output = new StringBuilder();
+            for (String line : result.getOut()) {
                 output.append(line).append("\n");
             }
             
-            // Lese Fehler
-            while ((line = errorReader.readLine()) != null) {
-                errorOutput.append(line).append("\n");
+            // Log errors if any
+            if (!result.getErr().isEmpty()) {
+                StringBuilder errors = new StringBuilder();
+                for (String line : result.getErr()) {
+                    errors.append(line).append("\n");
+                }
+                android.util.Log.w("BabixGO", "Command stderr: " + errors.toString());
             }
             
-            process.waitFor();
-            
-            os.close();
-            reader.close();
-            errorReader.close();
-            
-            if (errorOutput.length() > 0) {
-                android.util.Log.w("BabixGO", "Command stderr: " + errorOutput.toString());
+            // Check if command succeeded
+            if (!result.isSuccess()) {
+                android.util.Log.e("BabixGO", "Command failed with code: " + result.getCode());
             }
             
-            String result = output.toString();
-            android.util.Log.d("BabixGO", "Command output: '" + result.trim() + "'");
+            String outputStr = output.toString();
+            android.util.Log.d("BabixGO", "Command output: '" + outputStr.trim() + "'");
             
-            return result;
+            return outputStr;
             
         } catch (Exception e) {
             android.util.Log.e("BabixGO", "Command error: " + e.getMessage());
@@ -146,46 +134,41 @@ public class RootManager {
 
     /**
      * Execute multiple commands with root privileges.
+     * FIXED: Uses libsu for proper command execution on all Android versions.
      */
     public static String runRootCommands(String[] commands) {
         StringBuilder output = new StringBuilder();
         
         try {
-            Process process = Runtime.getRuntime().exec("su");
-            DataOutputStream os = new DataOutputStream(process.getOutputStream());
-            BufferedReader reader = new BufferedReader(
-                new InputStreamReader(process.getInputStream()));
-            BufferedReader errorReader = new BufferedReader(
-                new InputStreamReader(process.getErrorStream()));
-            
+            // Validate commands first
             for (String command : commands) {
-                // Validate each command before execution
                 if (!isCommandSafe(command)) {
                     android.util.Log.e("BabixGO", "Command validation failed: " + command);
                     output.append("Error: Command validation failed for: ").append(command).append("\n");
-                    continue;
+                    return output.toString();
                 }
-                os.writeBytes("sh -c '" + command.replace("'", "'\\''") + "'\n");
             }
-            os.writeBytes("exit\n");
-            os.flush();
             
-            String line;
-            while ((line = reader.readLine()) != null) {
+            // Execute all commands in a single shell session
+            // libsu automatically maintains shell context between commands
+            Shell.Result result = Shell.cmd(commands).exec();
+            
+            // Collect output
+            for (String line : result.getOut()) {
                 output.append(line).append("\n");
             }
             
-            while ((line = errorReader.readLine()) != null) {
+            // Collect errors
+            for (String line : result.getErr()) {
                 output.append("ERROR: ").append(line).append("\n");
             }
             
-            process.waitFor();
-            
-            os.close();
-            reader.close();
-            errorReader.close();
+            if (!result.isSuccess()) {
+                android.util.Log.e("BabixGO", "Commands failed with code: " + result.getCode());
+            }
             
         } catch (Exception e) {
+            android.util.Log.e("BabixGO", "Commands error: " + e.getMessage());
             return "Error: " + e.getMessage();
         }
         
