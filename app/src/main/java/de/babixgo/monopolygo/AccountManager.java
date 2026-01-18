@@ -19,8 +19,31 @@ public class AccountManager {
     private static final String PARTNEREVENTS_PATH = BASE_PATH + "Partnerevents/";
     private static final String BACKUPS_PATH = BASE_PATH + "Backups/";
     
+    private static final String TEMP_PATH = "/data/local/tmp/";
+    
+    // MonopolyGo Dateipfade
+    private static final String DATA_DIR = "/data/data/" + PACKAGE_NAME + "/";
+    
     private static final String DATA_FILE_PATH = "/data/data/" + PACKAGE_NAME + 
         "/files/DiskBasedCacheDirectory/WithBuddies.Services.User.0Production.dat";
+    
+    // MUSS IMMER gesichert werden
+    private static final String REQUIRED_FILE = 
+        DATA_DIR + "files/DiskBasedCacheDirectory/WithBuddies.Services.User.0Production.dat";
+    
+    // Optional - nur wenn vorhanden
+    private static final String[] OPTIONAL_FILES = {
+        DATA_DIR + "files/device-id",
+        DATA_DIR + "files/internal-device-id",
+        DATA_DIR + "files/generatefid.lock",
+        DATA_DIR + "shared_prefs/com.scopely.monopolygo.v2.playerprefs.xml",
+        DATA_DIR + "shared_prefs/mys_mod_window_positions.xml",
+        DATA_DIR + "shared_prefs/mys_mod_feature_settings.xml"
+    };
+    
+    // FB-Token (nur auf Anfrage)
+    private static final String FB_TOKEN_FILE = 
+        DATA_DIR + "shared_prefs/com.facebook.AccessTokenManager.SharedPreferences.xml";
     
     /**
      * Initialize the required directories on the device.
@@ -118,7 +141,7 @@ public class AccountManager {
     }
     
     /**
-     * Get the list of backed up accounts.
+     * Get the list of backed up accounts (jetzt ZIP-basiert).
      * @param isOwnAccounts true for own accounts, false for customer accounts
      * @return Array of account names
      */
@@ -135,12 +158,272 @@ public class AccountManager {
             return new String[0];
         }
         
-        String[] names = new String[files.length];
-        for (int i = 0; i < files.length; i++) {
-            names[i] = files[i].getName();
+        // Nur Ordner mit .zip Datei oder .dat Datei anzeigen (für Abwärtskompatibilität)
+        List<String> validAccounts = new ArrayList<>();
+        for (File dir : files) {
+            String accountName = dir.getName();
+            File zipFile = new File(dir, accountName + ".zip");
+            File datFile = new File(dir, "WithBuddies.Services.User.0Production.dat");
+            if (zipFile.exists() || datFile.exists()) {
+                validAccounts.add(accountName);
+            }
         }
         
-        return names;
+        return validAccounts.toArray(new String[0]);
+    }
+    
+    /**
+     * Erweiterte Backup-Funktion mit ZIP-Archivierung
+     * @param accountName Name des Accounts
+     * @param includeFbToken Soll FB-Token gesichert werden?
+     * @return true wenn erfolgreich
+     */
+    public static boolean backupAccountExtended(String accountName, boolean includeFbToken) {
+        // 1. App stoppen für konsistente Daten
+        forceStopApp();
+        
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        
+        // 2. Temporäres Verzeichnis erstellen
+        String tempDir = TEMP_PATH + accountName + "/";
+        RootManager.runRootCommand("mkdir -p \"" + tempDir + "\"");
+        
+        // 3. REQUIRED FILE kopieren (muss existieren)
+        if (!fileExists(REQUIRED_FILE)) {
+            RootManager.runRootCommand("rm -rf \"" + tempDir + "\"");
+            return false;
+        }
+        
+        String result = RootManager.runRootCommand(
+            "cp \"" + REQUIRED_FILE + "\" \"" + tempDir + "account.dat\""
+        );
+        
+        if (result.contains("Error") || result.contains("cannot")) {
+            RootManager.runRootCommand("rm -rf \"" + tempDir + "\"");
+            return false;
+        }
+        
+        // 4. Optionale Dateien kopieren (nur wenn vorhanden)
+        List<String> copiedFiles = new ArrayList<>();
+        copiedFiles.add("account.dat");
+        
+        for (int i = 0; i < OPTIONAL_FILES.length; i++) {
+            String sourceFile = OPTIONAL_FILES[i];
+            if (fileExists(sourceFile)) {
+                String fileName = getFileName(sourceFile, i);
+                String copyResult = RootManager.runRootCommand(
+                    "cp \"" + sourceFile + "\" \"" + tempDir + fileName + "\""
+                );
+                
+                if (!copyResult.contains("Error")) {
+                    copiedFiles.add(fileName);
+                }
+            }
+        }
+        
+        // 5. FB-Token kopieren (falls gewünscht und vorhanden)
+        if (includeFbToken && fileExists(FB_TOKEN_FILE)) {
+            String copyResult = RootManager.runRootCommand(
+                "cp \"" + FB_TOKEN_FILE + "\" \"" + tempDir + "fb_token.xml\""
+            );
+            
+            if (!copyResult.contains("Error")) {
+                copiedFiles.add("fb_token.xml");
+            }
+        }
+        
+        // 6. Dateiliste für Dokumentation erstellen
+        createFileList(tempDir, copiedFiles, includeFbToken);
+        
+        // 7. ZIP-Archiv erstellen
+        String zipFile = TEMP_PATH + accountName + ".zip";
+        String zipResult = RootManager.runRootCommand(
+            "cd \"" + tempDir + "\" && zip -r \"" + zipFile + "\" ."
+        );
+        
+        if (zipResult.contains("Error") || !fileExists(zipFile)) {
+            RootManager.runRootCommand("rm -rf \"" + tempDir + "\"");
+            return false;
+        }
+        
+        // 8. Zielverzeichnis erstellen
+        String targetDir = ACCOUNTS_EIGENE + accountName + "/";
+        File target = new File(targetDir);
+        if (!target.exists()) {
+            target.mkdirs();
+        }
+        
+        // 9. ZIP in finales Verzeichnis verschieben
+        String finalZip = targetDir + accountName + ".zip";
+        String moveResult = RootManager.runRootCommand(
+            "cp \"" + zipFile + "\" \"" + finalZip + "\" && " +
+            "chmod 644 \"" + finalZip + "\""
+        );
+        
+        // 10. Aufräumen
+        RootManager.runRootCommand("rm -rf \"" + tempDir + "\"");
+        RootManager.runRootCommand("rm -f \"" + zipFile + "\"");
+        
+        // 11. Erfolgsprüfung
+        File finalFile = new File(finalZip);
+        return finalFile.exists() && finalFile.length() > 0;
+    }
+    
+    /**
+     * Erweiterte Restore-Funktion für ZIP-Archive
+     */
+    public static boolean restoreAccountExtended(String accountName) {
+        // 1. App stoppen
+        forceStopApp();
+        
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        
+        // 2. ZIP-Pfad finden
+        String zipPath = ACCOUNTS_EIGENE + accountName + "/" + accountName + ".zip";
+        File zipFile = new File(zipPath);
+        
+        if (!zipFile.exists()) {
+            return false;
+        }
+        
+        // 3. Temporäres Verzeichnis erstellen
+        String tempDir = TEMP_PATH + accountName + "_restore/";
+        RootManager.runRootCommand("mkdir -p \"" + tempDir + "\"");
+        
+        // 4. ZIP entpacken
+        String unzipResult = RootManager.runRootCommand(
+            "unzip -o \"" + zipPath + "\" -d \"" + tempDir + "\""
+        );
+        
+        if (unzipResult.contains("Error")) {
+            RootManager.runRootCommand("rm -rf \"" + tempDir + "\"");
+            return false;
+        }
+        
+        // 5. Dateien zurückkopieren
+        boolean success = true;
+        
+        // Required file
+        if (fileExists(tempDir + "account.dat")) {
+            String result = RootManager.runRootCommand(
+                "cp \"" + tempDir + "account.dat\" \"" + REQUIRED_FILE + "\""
+            );
+            if (result.contains("Error")) {
+                success = false;
+            }
+        } else {
+            success = false;
+        }
+        
+        // Optionale Dateien
+        if (success) {
+            restoreOptionalFiles(tempDir);
+            
+            // Berechtigungen setzen
+            setProperPermissions();
+        }
+        
+        // 6. Aufräumen
+        RootManager.runRootCommand("rm -rf \"" + tempDir + "\"");
+        
+        return success;
+    }
+    
+    /**
+     * Hilfsmethode: Dateiname generieren
+     */
+    private static String getFileName(String fullPath, int index) {
+        if (fullPath.contains("device-id") && !fullPath.contains("internal")) {
+            return "device-id.txt";
+        } else if (fullPath.contains("internal-device-id")) {
+            return "internal-device-id.txt";
+        } else if (fullPath.contains("generatefid.lock")) {
+            return "generatefid.lock";
+        } else if (fullPath.contains("playerprefs.xml")) {
+            return "playerprefs.xml";
+        } else if (fullPath.contains("mys_mod_window_positions")) {
+            return "window_positions.xml";
+        } else if (fullPath.contains("mys_mod_feature_settings")) {
+            return "feature_settings.xml";
+        }
+        return "file_" + index;
+    }
+    
+    /**
+     * Hilfsmethode: Dateiliste erstellen
+     */
+    private static void createFileList(String tempDir, List<String> files, boolean fbIncluded) {
+        StringBuilder fileList = new StringBuilder();
+        fileList.append("=== Backup File List ===\n");
+        fileList.append("Date: ").append(new java.util.Date().toString()).append("\n");
+        fileList.append("FB-Token included: ").append(fbIncluded ? "YES" : "NO").append("\n");
+        fileList.append("\nFiles:\n");
+        
+        for (String file : files) {
+            fileList.append("- ").append(file).append("\n");
+        }
+        
+        RootManager.runRootCommand(
+            "echo '" + fileList.toString() + "' > \"" + tempDir + "backup_info.txt\""
+        );
+    }
+    
+    /**
+     * Hilfsmethode: Optionale Dateien wiederherstellen
+     */
+    private static void restoreOptionalFiles(String tempDir) {
+        String[][] fileMappings = {
+            {"device-id.txt", DATA_DIR + "files/device-id"},
+            {"internal-device-id.txt", DATA_DIR + "files/internal-device-id"},
+            {"generatefid.lock", DATA_DIR + "files/generatefid.lock"},
+            {"playerprefs.xml", DATA_DIR + "shared_prefs/com.scopely.monopolygo.v2.playerprefs.xml"},
+            {"window_positions.xml", DATA_DIR + "shared_prefs/mys_mod_window_positions.xml"},
+            {"feature_settings.xml", DATA_DIR + "shared_prefs/mys_mod_feature_settings.xml"},
+            {"fb_token.xml", DATA_DIR + "shared_prefs/com.facebook.AccessTokenManager.SharedPreferences.xml"}
+        };
+        
+        for (String[] mapping : fileMappings) {
+            String sourceFile = tempDir + mapping[0];
+            String targetFile = mapping[1];
+            
+            if (fileExists(sourceFile)) {
+                RootManager.runRootCommand(
+                    "cp \"" + sourceFile + "\" \"" + targetFile + "\""
+                );
+            }
+        }
+    }
+    
+    /**
+     * Hilfsmethode: Berechtigungen setzen
+     */
+    private static void setProperPermissions() {
+        String[] commands = {
+            "chmod 660 \"" + REQUIRED_FILE + "\"",
+            "chown $(stat -c %u:%g " + DATA_DIR + ") \"" + REQUIRED_FILE + "\"",
+            "chmod 660 \"" + DATA_DIR + "shared_prefs/*.xml\" 2>/dev/null || true",
+            "chown $(stat -c %u:%g " + DATA_DIR + ") \"" + DATA_DIR + "shared_prefs/*.xml\" 2>/dev/null || true"
+        };
+        
+        RootManager.runRootCommands(commands);
+    }
+    
+    /**
+     * Hilfsmethode: Datei existiert?
+     */
+    private static boolean fileExists(String path) {
+        String result = RootManager.runRootCommand(
+            "[ -f \"" + path + "\" ] && echo 'exists' || echo 'not found'"
+        );
+        return result.contains("exists");
     }
     
     /**

@@ -1,6 +1,7 @@
 package de.babixgo.monopolygo;
 
 import android.os.Bundle;
+import android.widget.CheckBox;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
@@ -69,7 +70,7 @@ public class AccountManagementActivity extends AppCompatActivity {
         }
         
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Account auswählen");
+        builder.setTitle("Account wiederherstellen");
         builder.setItems(accounts, (dialog, which) -> {
             String accountName = accounts[which];
             restoreAccount(accountName);
@@ -79,17 +80,37 @@ public class AccountManagementActivity extends AppCompatActivity {
     }
     
     private void restoreAccount(String accountName) {
+        // Progress Dialog anzeigen
+        AlertDialog progressDialog = new AlertDialog.Builder(this)
+            .setTitle("Wiederherstellen...")
+            .setMessage("Account wird wiederhergestellt\nBitte warten...")
+            .setCancelable(false)
+            .create();
+        progressDialog.show();
+        
         new Thread(() -> {
-            String basePath = AccountManager.getAccountsEigenePath();
-            String sourceFile = basePath + accountName + 
-                "/WithBuddies.Services.User.0Production.dat";
+            // Erst versuchen, ZIP-basierte Wiederherstellung zu nutzen
+            String zipPath = AccountManager.getAccountsEigenePath() + accountName + "/" + accountName + ".zip";
+            File zipFile = new File(zipPath);
             
-            boolean success = AccountManager.restoreAccount(sourceFile);
+            boolean success;
+            if (zipFile.exists()) {
+                // Neue ZIP-basierte Wiederherstellung
+                success = AccountManager.restoreAccountExtended(accountName);
+            } else {
+                // Fallback auf alte .dat-basierte Wiederherstellung
+                String basePath = AccountManager.getAccountsEigenePath();
+                String sourceFile = basePath + accountName + 
+                    "/WithBuddies.Services.User.0Production.dat";
+                success = AccountManager.restoreAccount(sourceFile);
+            }
             
             runOnUiThread(() -> {
+                progressDialog.dismiss();
+                
                 if (success) {
                     Toast.makeText(this, "✅ Account wiederhergestellt", 
-                        Toast.LENGTH_SHORT).show();
+                        Toast.LENGTH_LONG).show();
                     
                     new AlertDialog.Builder(this)
                         .setTitle("App starten?")
@@ -98,8 +119,15 @@ public class AccountManagementActivity extends AppCompatActivity {
                         .setNegativeButton("Nein", null)
                         .show();
                 } else {
-                    Toast.makeText(this, "❌ Fehler beim Wiederherstellen", 
-                        Toast.LENGTH_SHORT).show();
+                    new AlertDialog.Builder(this)
+                        .setTitle("Fehler")
+                        .setMessage("❌ Account konnte nicht wiederhergestellt werden.\n\n" +
+                                  "Mögliche Ursachen:\n" +
+                                  "• Root-Zugriff fehlt\n" +
+                                  "• ZIP-Datei beschädigt\n" +
+                                  "• Unzip-Tool fehlt")
+                        .setPositiveButton("OK", null)
+                        .show();
                 }
                 updateAccountCount();
             });
@@ -107,9 +135,10 @@ public class AccountManagementActivity extends AppCompatActivity {
     }
     
     private void showBackupDialog() {
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_backup_simple, null);
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_backup_extended, null);
         EditText etInternalId = dialogView.findViewById(R.id.et_internal_id);
         EditText etNote = dialogView.findViewById(R.id.et_note);
+        CheckBox cbFbToken = dialogView.findViewById(R.id.cb_include_fb_token);
         
         new AlertDialog.Builder(this)
             .setTitle("Account sichern")
@@ -117,43 +146,72 @@ public class AccountManagementActivity extends AppCompatActivity {
             .setPositiveButton("Sichern", (dialog, which) -> {
                 String id = etInternalId.getText().toString().trim();
                 String note = etNote.getText().toString().trim();
+                boolean includeFb = cbFbToken.isChecked();
                 
                 if (id.isEmpty()) {
-                    Toast.makeText(this, "ID erforderlich", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Interne ID erforderlich", 
+                        Toast.LENGTH_SHORT).show();
                     return;
                 }
                 
-                backupAccount(id, note);
+                backupAccount(id, note, includeFb);
             })
             .setNegativeButton("Abbrechen", null)
             .show();
     }
     
-    private void backupAccount(String internalId, String note) {
+    private void backupAccount(String internalId, String note, boolean includeFbToken) {
+        // Progress Dialog
+        AlertDialog progressDialog = new AlertDialog.Builder(this)
+            .setTitle("Sichern...")
+            .setMessage("Account wird gesichert\nBitte warten...")
+            .setCancelable(false)
+            .create();
+        progressDialog.show();
+        
         new Thread(() -> {
-            boolean success = AccountManager.backupAccount(
-                AccountManager.getAccountsEigenePath(), 
-                internalId
+            boolean success = AccountManager.backupAccountExtended(
+                internalId, 
+                includeFbToken
             );
             
             if (success) {
-                saveMetadata(internalId, note);
+                saveMetadata(internalId, note, includeFbToken);
             }
             
             runOnUiThread(() -> {
+                progressDialog.dismiss();
+                
                 if (success) {
-                    Toast.makeText(this, "✅ Account gesichert", 
-                        Toast.LENGTH_SHORT).show();
+                    String message = "✅ Account erfolgreich gesichert!\n\n" +
+                                   "📝 ID: " + internalId + "\n" +
+                                   "📅 Datum: " + getCurrentDate() + "\n" +
+                                   "🔐 FB-Token: " + (includeFbToken ? "✓ gesichert" : "✗ nicht gesichert") + "\n" +
+                                   "💾 Format: ZIP-Archiv";
+                    
+                    new AlertDialog.Builder(this)
+                        .setTitle("Backup erfolgreich")
+                        .setMessage(message)
+                        .setPositiveButton("OK", null)
+                        .show();
                 } else {
-                    Toast.makeText(this, "❌ Fehler beim Sichern", 
-                        Toast.LENGTH_SHORT).show();
+                    new AlertDialog.Builder(this)
+                        .setTitle("Fehler")
+                        .setMessage("❌ Backup fehlgeschlagen\n\n" +
+                                  "Mögliche Ursachen:\n" +
+                                  "• Root-Zugriff fehlt\n" +
+                                  "• MonopolyGo nicht installiert\n" +
+                                  "• Speicherplatz voll\n" +
+                                  "• ZIP-Tool fehlt")
+                        .setPositiveButton("OK", null)
+                        .show();
                 }
                 updateAccountCount();
             });
         }).start();
     }
     
-    private void saveMetadata(String id, String note) {
+    private void saveMetadata(String id, String note, boolean fbIncluded) {
         try {
             String csvPath = AccountManager.getAccountsEigenePath() + "Accountinfos.csv";
             File csvFile = new File(csvPath);
@@ -161,24 +219,80 @@ public class AccountManagementActivity extends AppCompatActivity {
             
             FileWriter fw = new FileWriter(csvFile, true);
             if (writeHeader) {
-                fw.write("InterneID,Datum,Notiz\n");
+                fw.write("InterneID,Datum,FBToken,Notiz\n");
             }
             
-            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
-            String date = sdf.format(new Date());
+            String date = getCurrentDate();
+            String fb = fbIncluded ? "JA" : "NEIN";
             
             // Properly escape the note field to prevent CSV injection
-            String escapedNote = note.replace("\"", "\"\""); // Escape quotes by doubling them
+            String escapedNote = note.replace("\"", "\"\"");
             
-            fw.write(String.format("%s,%s,\"%s\"\n", id, date, escapedNote));
+            fw.write(String.format("%s,%s,%s,\"%s\"\n", id, date, fb, escapedNote));
             fw.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
     
+    private String getCurrentDate() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault());
+        return sdf.format(new Date());
+    }
+    
     private void showDeleteDialog() {
-        Toast.makeText(this, "🚧 Funktion in Entwicklung", Toast.LENGTH_SHORT).show();
+        String[] accounts = AccountManager.getBackedUpAccounts(true);
+        
+        if (accounts.length == 0) {
+            Toast.makeText(this, "Keine Accounts vorhanden", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        new AlertDialog.Builder(this)
+            .setTitle("Account löschen")
+            .setMessage("⚠️ Welchen Account möchten Sie löschen?")
+            .setItems(accounts, (dialog, which) -> {
+                String accountName = accounts[which];
+                confirmDelete(accountName);
+            })
+            .setNegativeButton("Abbrechen", null)
+            .show();
+    }
+    
+    private void confirmDelete(String accountName) {
+        new AlertDialog.Builder(this)
+            .setTitle("Wirklich löschen?")
+            .setMessage("⚠️ Account \"" + accountName + "\" wirklich löschen?\n\n" +
+                      "Diese Aktion kann nicht rückgängig gemacht werden!")
+            .setPositiveButton("Löschen", (d, w) -> {
+                deleteAccount(accountName);
+            })
+            .setNegativeButton("Abbrechen", null)
+            .show();
+    }
+    
+    private void deleteAccount(String accountName) {
+        String accountPath = AccountManager.getAccountsEigenePath() + accountName;
+        File accountDir = new File(accountPath);
+        
+        if (deleteRecursive(accountDir)) {
+            Toast.makeText(this, "✅ Account gelöscht", Toast.LENGTH_SHORT).show();
+            updateAccountCount();
+        } else {
+            Toast.makeText(this, "❌ Fehler beim Löschen", Toast.LENGTH_SHORT).show();
+        }
+    }
+    
+    private boolean deleteRecursive(File fileOrDirectory) {
+        if (fileOrDirectory.isDirectory()) {
+            File[] children = fileOrDirectory.listFiles();
+            if (children != null) {
+                for (File child : children) {
+                    deleteRecursive(child);
+                }
+            }
+        }
+        return fileOrDirectory.delete();
     }
     
     private void showEditDialog() {

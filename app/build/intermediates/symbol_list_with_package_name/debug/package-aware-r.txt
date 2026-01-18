@@ -3007,6 +3007,7 @@ drawable ic_restore
 drawable ic_save
 drawable ic_search_black_24
 drawable info_background
+drawable info_background_light
 drawable m3_avd_hide_password
 drawable m3_avd_show_password
 drawable m3_bottom_sheet_drag_handle
@@ -3199,6 +3200,7 @@ id cache_measures
 id callMeasure
 id cancel_button
 id carryVelocity
+id cb_include_fb_token
 id center
 id centerCrop
 id centerInside
@@ -3733,6 +3735,7 @@ layout design_navigation_menu_item
 layout design_text_input_end_icon
 layout design_text_input_start_icon
 layout dialog_backup_customer
+layout dialog_backup_extended
 layout dialog_backup_own
 layout dialog_backup_simple
 layout m3_alert_dialog
