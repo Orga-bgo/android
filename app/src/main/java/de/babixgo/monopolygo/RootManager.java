@@ -99,8 +99,11 @@ public class RootManager {
     public static String runRootCommand(String command) {
         // Basic safety check
         if (!isCommandSafe(command)) {
-            return "Error: Command validation failed - potentially unsafe command";
+            android.util.Log.e("BabixGO", "Command validation failed: " + command);
+            return "Error: Command validation failed";
         }
+        
+        android.util.Log.d("BabixGO", "Executing root command: " + command);
         
         StringBuilder output = new StringBuilder();
         
@@ -122,8 +125,9 @@ public class RootManager {
             }
             
             // Also read error stream
+            StringBuilder errorOutput = new StringBuilder();
             while ((line = errorReader.readLine()) != null) {
-                output.append("ERROR: ").append(line).append("\n");
+                errorOutput.append(line).append("\n");
             }
             
             process.waitFor();
@@ -132,11 +136,21 @@ public class RootManager {
             reader.close();
             errorReader.close();
             
+            // Log error output if present
+            if (errorOutput.length() > 0) {
+                android.util.Log.w("BabixGO", "Command stderr: " + errorOutput.toString());
+            }
+            
+            String result = output.toString();
+            android.util.Log.d("BabixGO", "Command output: '" + result.trim() + "'");
+            
+            return result;
+            
         } catch (Exception e) {
+            android.util.Log.e("BabixGO", "Command error: " + e.getMessage());
+            e.printStackTrace();
             return "Error: " + e.getMessage();
         }
-        
-        return output.toString();
     }
 
     /**
