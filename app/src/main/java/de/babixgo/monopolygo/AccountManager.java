@@ -552,6 +552,41 @@ public class AccountManager {
     }
     
     /**
+     * Hilfsmethode: Optionale Dateien sichern (reverse of restoreOptionalFiles)
+     * Uses same file mappings and commands as restore but in reverse direction
+     */
+    private static void backupOptionalFiles(String tempDir, boolean includeFbToken) {
+        String[][] fileMappings = {
+            {"device-id.txt", DATA_DIR + "files/device-id"},
+            {"internal-device-id.txt", DATA_DIR + "files/internal-device-id"},
+            {"generatefid.lock", DATA_DIR + "files/generatefid.lock"},
+            {"playerprefs.xml", DATA_DIR + "shared_prefs/com.scopely.monopolygo.v2.playerprefs.xml"},
+            {"window_positions.xml", DATA_DIR + "shared_prefs/mys_mod_window_positions.xml"},
+            {"feature_settings.xml", DATA_DIR + "shared_prefs/mys_mod_feature_settings.xml"},
+            {"fb_token.xml", DATA_DIR + "shared_prefs/com.facebook.AccessTokenManager.SharedPreferences.xml"}
+        };
+        
+        for (String[] mapping : fileMappings) {
+            String targetFile = tempDir + mapping[0];
+            String sourceFile = mapping[1];
+            
+            // Skip fb_token if not requested
+            if (mapping[0].equals("fb_token.xml") && !includeFbToken) {
+                continue;
+            }
+            
+            // Check if source file exists using shell command (same test as restore)
+            String checkCommand = "[ -f " + escapeShellArg(sourceFile) + " ] && echo 'exists' || echo 'not found'";
+            String checkResult = RootManager.runRootCommand(checkCommand);
+            
+            if (checkResult.contains("exists")) {
+                String cpCommand = "cp " + escapeShellArg(sourceFile) + " " + escapeShellArg(targetFile);
+                RootManager.runRootCommand(cpCommand);
+            }
+        }
+    }
+    
+    /**
      * Hilfsmethode: Berechtigungen setzen
      */
     private static void setProperPermissions() {
@@ -576,193 +611,102 @@ public class AccountManager {
     }
     
     /**
-     * Backup Account - SIMPLIFIED VERSION (like original)
-     * No complex checks, just copy
+     * Backup Account - Mirrors restoreAccountExtended in reverse order
+     * Uses same tests, commands, and variables as restore
      */
     public static boolean backupAccountSimple(String accountName, boolean includeFbToken) {
-        // Validate accountName to prevent command injection
+        // Validate accountName to prevent command injection (same as restore)
         if (!isValidAccountName(accountName)) {
-            android.util.Log.e("BabixGO", "Invalid account name: " + accountName);
+            Log.e(TAG, "Invalid account name: " + accountName);
             return false;
         }
         
-        android.util.Log.d("BabixGO", "=== BACKUP START (Simple) ===");
-        android.util.Log.d("BabixGO", "Account: " + accountName);
-        android.util.Log.d("BabixGO", "FB-Token: " + includeFbToken);
-        
-        // 1. App stoppen
+        // 1. App stoppen (same as restore step 1)
         forceStopApp();
         
         try {
             Thread.sleep(1000);
         } catch (InterruptedException e) {
-            e.printStackTrace();
+            Log.e(TAG, "Sleep interrupted during backup", e);
         }
         
-        // 2. Temp-Verzeichnis erstellen
-        String tempDir = TEMP_PATH + accountName + "/";
-        File tempDirFile = new File(tempDir);
-        
-        if (tempDirFile.exists()) {
-            deleteRecursive(tempDirFile);
-        }
-        
-        if (!tempDirFile.mkdirs()) {
-            android.util.Log.e("BabixGO", "Temp-Verzeichnis konnte nicht erstellt werden");
-            return false;
-        }
-        
-        android.util.Log.d("BabixGO", "Temp-Dir: " + tempDir);
-        
-        // 3. Finde Account-Datei
-        String accountFile = findAccountFile();
-        if (accountFile == null) {
-            android.util.Log.e("BabixGO", "Account-Datei nicht gefunden");
-            deleteRecursive(tempDirFile);
-            return false;
-        }
-        
-        android.util.Log.d("BabixGO", "Account-Datei: " + accountFile);
-        
-        // 4. Kopiere Account-Datei - SIMPEL wie Original
-        String destFile = tempDir + "account.dat";
-        String command = "cp " + escapeShellArg(accountFile) + " " + escapeShellArg(destFile);
-        
-        android.util.Log.d("BabixGO", "Executing: " + command);
-        String result = RootManager.runRootCommand(command);
-        android.util.Log.d("BabixGO", "Result: " + result);
-        
-        // Prüfe ob kopiert (kein fileExists, direkter File-Check)
-        File copiedFile = new File(destFile);
-        if (!copiedFile.exists() || copiedFile.length() == 0) {
-            android.util.Log.e("BabixGO", "Kopieren fehlgeschlagen");
-            deleteRecursive(tempDirFile);
-            return false;
-        }
-        
-        android.util.Log.d("BabixGO", "✓ Account-Datei kopiert (" + copiedFile.length() + " bytes)");
-        
-        // 5. Optionale Dateien kopieren (simple Version)
-        List<String> copiedFiles = new ArrayList<>();
-        copiedFiles.add("account.dat");
-        
-        copyOptionalFile("/data/data/" + PACKAGE_NAME + "/files/device-id", 
-                         tempDir + "device-id.txt", copiedFiles);
-        copyOptionalFile("/data/data/" + PACKAGE_NAME + "/files/internal-device-id", 
-                         tempDir + "internal-device-id.txt", copiedFiles);
-        copyOptionalFile("/data/data/" + PACKAGE_NAME + "/shared_prefs/" + PACKAGE_NAME + ".v2.playerprefs.xml", 
-                         tempDir + "playerprefs.xml", copiedFiles);
-        
-        if (includeFbToken) {
-            copyOptionalFile("/data/data/" + PACKAGE_NAME + "/shared_prefs/com.facebook.AccessTokenManager.SharedPreferences.xml", 
-                             tempDir + "fb_token.xml", copiedFiles);
-        }
-        
-        // 6. Backup-Info
-        createFileList(tempDir, copiedFiles, includeFbToken);
-        
-        // 7. Berechtigungen (more restrictive than 777)
-        RootManager.runRootCommand("chmod -R 755 " + escapeShellArg(tempDir));
-        
-        android.util.Log.d("BabixGO", "Erstelle ZIP...");
-        
-        // 8. ZIP erstellen (shell command)
-        String zipFile = TEMP_PATH + accountName + ".zip";
-        String zipCommand = "cd " + escapeShellArg(tempDir) + " && zip -r " + escapeShellArg(zipFile) + " . 2>&1";
-        String zipResult = RootManager.runRootCommand(zipCommand);
-        
-        boolean zipSuccess = new File(zipFile).exists() && new File(zipFile).length() > 0;
-        
-        if (!zipSuccess) {
-            android.util.Log.e("BabixGO", "ZIP-Erstellung fehlgeschlagen: " + zipResult);
-            deleteRecursive(tempDirFile);
-            return false;
-        }
-        
-        android.util.Log.d("BabixGO", "✓ ZIP erstellt");
-        
-        // 9. Zielverzeichnis
+        // 2. Zielverzeichnis erstellen (reverse of restore step 6 cleanup)
         String targetDir = ACCOUNTS_EIGENE + accountName + "/";
         File target = new File(targetDir);
         if (!target.exists()) {
             target.mkdirs();
         }
         
-        // 10. ZIP verschieben
-        String finalZip = targetDir + accountName + ".zip";
-        File zipFileObj = new File(zipFile);
-        File finalZipObj = new File(finalZip);
+        // Define final ZIP path (reverse of restore step 2)
+        String zipPath = targetDir + accountName + ".zip";
+        File zipFile = new File(zipPath);
         
-        if (finalZipObj.exists()) {
-            finalZipObj.delete();
+        // 3. Temporäres Verzeichnis erstellen (same as restore step 3)
+        String tempDir = TEMP_PATH + accountName + "_backup/";
+        File tempDirFile = new File(tempDir);
+        
+        // Altes Temp-Verzeichnis löschen falls vorhanden (same as restore)
+        if (tempDirFile.exists()) {
+            deleteRecursive(tempDirFile);
         }
         
-        boolean moved = zipFileObj.renameTo(finalZipObj);
+        tempDirFile.mkdirs();
         
-        // 11. Cleanup
+        // 4. Dateien kopieren (reverse of restore step 5)
+        boolean success = true;
+        
+        // Required file (reverse of restore)
+        String cpCommand = "cp " + escapeShellArg(REQUIRED_FILE) + " " + escapeShellArg(tempDir + "account.dat");
+        String cpResult = RootManager.runRootCommand(cpCommand);
+        
+        // Check if copy succeeded (same test as restore)
+        boolean copySuccess = new File(tempDir + "account.dat").exists();
+        success = copySuccess && !cpResult.contains("Error") && !cpResult.contains("cannot");
+        
+        if (!copySuccess) {
+            deleteRecursive(tempDirFile);
+            return false;
+        }
+        
+        // Optionale Dateien kopieren (reverse of restore)
+        if (success) {
+            backupOptionalFiles(tempDir, includeFbToken);
+        }
+        
+        // 5. ZIP erstellen (reverse of restore step 4 unzip)
+        String tempZipFile = TEMP_PATH + accountName + ".zip";
+        String zipCommand = "cd " + escapeShellArg(tempDir) + " && zip -r " + escapeShellArg(tempZipFile) + " . 2>&1";
+        String zipResult = RootManager.runRootCommand(zipCommand);
+        
+        boolean zipSuccess = new File(tempZipFile).exists() && new File(tempZipFile).length() > 0;
+        
+        if (!zipSuccess) {
+            deleteRecursive(tempDirFile);
+            return false;
+        }
+        
+        // Move ZIP to final location
+        File tempZipFileObj = new File(tempZipFile);
+        
+        // Delete old ZIP if exists (same pattern as restore)
+        if (zipFile.exists()) {
+            zipFile.delete();
+        }
+        
+        boolean moved = tempZipFileObj.renameTo(zipFile);
+        
+        if (!moved) {
+            deleteRecursive(tempDirFile);
+            if (tempZipFileObj.exists()) {
+                tempZipFileObj.delete();
+            }
+            return false;
+        }
+        
+        // 6. Aufräumen (same as restore step 6)
         deleteRecursive(tempDirFile);
-        if (zipFileObj.exists()) {
-            zipFileObj.delete();
-        }
-        
-        // 12. Erfolgsprüfung
-        boolean success = moved && finalZipObj.exists() && finalZipObj.length() > 0;
-        
-        android.util.Log.d("BabixGO", "=== BACKUP " + (success ? "ERFOLGREICH" : "FEHLGESCHLAGEN") + " ===");
-        android.util.Log.d("BabixGO", "ZIP: " + finalZip);
-        android.util.Log.d("BabixGO", "Größe: " + finalZipObj.length() + " bytes");
         
         return success;
-    }
-    
-    /**
-     * Helper method: Copy optional file
-     */
-    private static void copyOptionalFile(String source, String dest, List<String> fileList) {
-        String command = "cp " + escapeShellArg(source) + " " + escapeShellArg(dest) + " 2>&1";
-        String result = RootManager.runRootCommand(command);
-        
-        if (new File(dest).exists()) {
-            fileList.add(new File(dest).getName());
-            android.util.Log.d("BabixGO", "✓ Optional kopiert: " + new File(dest).getName());
-        } else if (!result.isEmpty() && !result.contains("No such file")) {
-            // Log unexpected errors, but expected "No such file" is fine for optional files
-            android.util.Log.d("BabixGO", "Optional file not copied: " + source + " - " + result);
-        }
-    }
-    
-    /**
-     * Find Account-File - SIMPLIFIED
-     */
-    private static String findAccountFile() {
-        String[] possiblePaths = {
-            "/data/data/" + PACKAGE_NAME + "/files/DiskBasedCacheDirectory/WithBuddies.Services.User.0Production.dat",
-            "/data/data/" + PACKAGE_NAME + "/files/WithBuddies.Services.User.0Production.dat",
-            "/data/user/0/" + PACKAGE_NAME + "/files/DiskBasedCacheDirectory/WithBuddies.Services.User.0Production.dat"
-        };
-        
-        for (String path : possiblePaths) {
-            // SIMPLE CHECK: Versuche zu lesen
-            String cmd = "ls " + escapeShellArg(path) + " 2>&1";
-            String result = RootManager.runRootCommand(cmd);
-            
-            if (!result.contains("No such file")) {
-                android.util.Log.d("BabixGO", "Gefunden: " + path);
-                return path;
-            }
-        }
-        
-        // Fallback: find (PACKAGE_NAME is safe, from constant)
-        // Note: Wildcards must be outside quotes to be interpreted by shell
-        String basePath = "/data/data/" + PACKAGE_NAME;
-        String cmd = "find " + escapeShellArg(basePath) + " -name '*WithBuddies.Services.User*.dat' 2>/dev/null | head -n 1";
-        String result = RootManager.runRootCommand(cmd);
-        
-        if (result != null && result.trim().length() > 0 && !result.contains("Error")) {
-            return result.trim();
-        }
-        
-        return null;
     }
     
     /**
