@@ -642,7 +642,7 @@ public class AccountManager {
         File zipFile = new File(zipPath);
         
         // 3. Temporäres Verzeichnis erstellen (same as restore step 3)
-        String tempDir = TEMP_PATH + accountName + "/";
+        String tempDir = TEMP_PATH + accountName + "_backup/";
         File tempDirFile = new File(tempDir);
         
         // Altes Temp-Verzeichnis löschen falls vorhanden (same as restore)
