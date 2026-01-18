@@ -28,13 +28,17 @@ public class RootManager {
     /**
      * Check if the device is rooted.
      * Uses libsu's built-in root detection which is more reliable.
+     * This method only checks status without triggering the root permission dialog.
      */
     public static boolean isRooted() {
         // libsu handles root detection properly across all Android versions
+        // This ONLY checks status and doesn't trigger the permission dialog
         Boolean granted = Shell.isAppGrantedRoot();
         if (granted == null) {
-            // Root status is undetermined (e.g., first time, not yet checked)
-            return false;
+            // Root status is undetermined - assume device might be rooted
+            // but we haven't requested permission yet
+            // Return true so we attempt to request root
+            return true;
         }
         return granted;
     }
@@ -42,6 +46,7 @@ public class RootManager {
     /**
      * Request root access from SuperSU/Magisk/KernelSU.
      * Uses libsu which properly handles root requests on all Android versions.
+     * This method ACTUALLY triggers the root permission dialog by creating a shell.
      * @return true if root access is granted, false otherwise
      */
     public static boolean requestRoot() {
@@ -50,18 +55,13 @@ public class RootManager {
         }
         
         try {
-            // libsu automatically handles root request dialog and compatibility
-            // Works with Magisk 24+, KernelSU, and older SuperSU
-            Boolean granted = Shell.isAppGrantedRoot();
+            // IMPORTANT: Shell.isAppGrantedRoot() only checks status, doesn't request root!
+            // To actually trigger the root permission dialog, we need to create a shell.
+            // This will show the Magisk/SuperSU/KernelSU permission dialog to the user.
+            Shell shell = Shell.getShell();
             
-            if (granted == null) {
-                // Root status undetermined - treat as denied
-                android.util.Log.w("BabixGO", "Root status undetermined");
-                hasRootAccess = false;
-            } else {
-                hasRootAccess = granted;
-            }
-            
+            // Now check if root was granted
+            hasRootAccess = shell.isRoot();
             rootChecked = true;
             
             android.util.Log.d("BabixGO", "Root access: " + (hasRootAccess ? "granted" : "denied"));
