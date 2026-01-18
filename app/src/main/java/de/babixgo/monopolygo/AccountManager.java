@@ -387,22 +387,36 @@ public class AccountManager {
         // 3. Temporäres Verzeichnis erstellen
         String tempDir = TEMP_PATH + accountName + "_restore/";
         File tempDirFile = new File(tempDir);
-        
-        // Altes Temp-Verzeichnis löschen falls vorhanden
+
+        // Altes Temp-Verzeichnis löschen falls vorhanden (use root)
         if (tempDirFile.exists()) {
-            deleteRecursive(tempDirFile);
+            Log.d(TAG, "Deleting old temp directory: " + tempDir);
+            RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
         }
-        
-        tempDirFile.mkdirs();
-        
-        // 4. ZIP entpacken (shell command)
-        String unzipCommand = "unzip -o " + escapeShellArg(zipPath) + " -d " + escapeShellArg(tempDir) + " 2>&1";
-        String unzipResult = RootManager.runRootCommand(unzipCommand);
-        
-        boolean unzipSuccess = new File(tempDir + "account.dat").exists();
-        
+
+        // Create temp directory with ROOT (required for /data/local/tmp/)
+        Log.d(TAG, "Creating temp directory with root: " + tempDir);
+        String mkdirCommand = "mkdir -p " + escapeShellArg(tempDir);
+        RootManager.runRootCommand(mkdirCommand);
+
+        // Verify directory was created
+        String verifyCommand = "[ -d " + escapeShellArg(tempDir) + " ] && echo 'exists' || echo 'not found'";
+        String verifyResult = RootManager.runRootCommand(verifyCommand);
+
+        if (!verifyResult.contains("exists")) {
+            Log.e(TAG, "Failed to create temp directory: " + tempDir);
+            return false;
+        }
+
+        Log.d(TAG, "Temp directory created successfully: " + tempDir);
+
+        // 4. ZIP entpacken - use Java implementation (no external unzip binary needed)
+        Log.d(TAG, "Extracting ZIP archive: " + zipPath);
+        boolean unzipSuccess = ZipManager.unzipArchive(zipPath, tempDir);
+
         if (!unzipSuccess) {
-            deleteRecursive(tempDirFile);
+            Log.e(TAG, "Failed to extract ZIP archive");
+            RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
             return false;
         }
         
@@ -424,10 +438,11 @@ public class AccountManager {
             restoreOptionalFiles(tempDir);
             setProperPermissions();
         }
-        
-        // 6. Aufräumen
-        deleteRecursive(tempDirFile);
-        
+
+        // 6. Aufräumen - use root to delete
+        Log.d(TAG, "Cleaning up temp directory");
+        RootManager.runRootCommand("rm -rf " + escapeShellArg(tempDir));
+
         return success;
     }
     
@@ -756,10 +771,10 @@ public class AccountManager {
         
         // 5. ZIP erstellen (reverse of restore step 4 unzip)
         String tempZipFile = TEMP_PATH + accountName + ".zip";
-        String zipCommand = "cd " + escapeShellArg(tempDir) + " && zip -r " + escapeShellArg(tempZipFile) + " . 2>&1";
-        String zipResult = RootManager.runRootCommand(zipCommand);
-        
-        boolean zipSuccess = new File(tempZipFile).exists() && new File(tempZipFile).length() > 0;
+        Log.d(TAG, "Creating ZIP archive: " + tempZipFile);
+
+        // Use Java's built-in ZIP functionality (no external zip binary needed)
+        boolean zipSuccess = ZipManager.zipDirectory(tempDir, tempZipFile);
 
         if (!zipSuccess) {
             // Delete temp directory with root
