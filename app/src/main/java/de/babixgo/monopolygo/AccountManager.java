@@ -656,12 +656,12 @@ public class AccountManager {
         boolean success = true;
         
         // Required file (reverse of restore)
-        File accountDatFile = new File(tempDir + "account.dat");
         String cpCommand = "cp " + escapeShellArg(REQUIRED_FILE) + " " + escapeShellArg(tempDir + "account.dat");
         String cpResult = RootManager.runRootCommand(cpCommand);
         
         // Check if copy succeeded (same test as restore)
         boolean copySuccess = new File(tempDir + "account.dat").exists();
+        success = copySuccess && !cpResult.contains("Error") && !cpResult.contains("cannot");
         
         if (!copySuccess) {
             deleteRecursive(tempDirFile);
@@ -706,7 +706,7 @@ public class AccountManager {
         // 6. Aufräumen (same as restore step 6)
         deleteRecursive(tempDirFile);
         
-        return success && zipFile.exists();
+        return success;
     }
     
     /**
