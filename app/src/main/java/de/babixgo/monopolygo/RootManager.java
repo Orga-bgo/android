@@ -21,7 +21,9 @@ public class RootManager {
         // Configure libsu Shell
         Shell.enableVerboseLogging = android.util.Log.isLoggable("BabixGO", android.util.Log.DEBUG);
         Shell.setDefaultBuilder(Shell.Builder.create()
-            .setFlags(Shell.FLAG_REDIRECT_STDERR)
+            // FLAG_MOUNT_MASTER is CRITICAL for accessing app-private data in /data/data/
+            // Without it, the root shell cannot read from other apps' private directories
+            .setFlags(Shell.FLAG_REDIRECT_STDERR | Shell.FLAG_MOUNT_MASTER)
             .setTimeout(SHELL_TIMEOUT_SECONDS));
     }
 
