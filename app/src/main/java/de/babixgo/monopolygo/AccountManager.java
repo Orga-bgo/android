@@ -8,6 +8,7 @@ import com.opencsv.CSVReader;
 import java.io.FileReader;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.UUID;
 
 /**
  * Manager class for MonopolyGo account operations (backup, restore, etc).
@@ -509,8 +510,8 @@ public class AccountManager {
         
         // If directory exists, try to verify it's usable by testing file creation
         if (tempDirFile.exists()) {
-            // Use timestamp in filename to avoid race conditions
-            File testFile = new File(tempDir, ".test_write_" + System.currentTimeMillis());
+            // Use UUID for guaranteed unique filename to avoid race conditions
+            File testFile = new File(tempDir, ".test_write_" + UUID.randomUUID().toString());
             try {
                 if (testFile.createNewFile()) {
                     testFile.delete();
@@ -543,8 +544,8 @@ public class AccountManager {
             return false;
         }
         
-        // Verify we can actually write to it (use timestamp in filename to avoid race conditions)
-        File testFile = new File(tempDir, ".test_write_" + System.currentTimeMillis());
+        // Verify we can actually write to it (use UUID for guaranteed unique filename to avoid race conditions)
+        File testFile = new File(tempDir, ".test_write_" + UUID.randomUUID().toString());
         try {
             if (!testFile.createNewFile()) {
                 Log.e("BabixGO", "Temp directory created but cannot write to it: " + tempDir);
