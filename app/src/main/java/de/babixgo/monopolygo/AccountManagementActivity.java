@@ -142,6 +142,11 @@ public class AccountManagementActivity extends AppCompatActivity {
     }
     
     private void showBackupDialog() {
+        // TEMPORÄR FÜR TEST - Shell Commands testen
+        testShellCommands();
+        return;
+        
+        /* ORIGINAL CODE - wird nach Test wieder aktiviert
         try {
             View dialogView = getLayoutInflater().inflate(R.layout.dialog_backup_extended, null);
             EditText etInternalId = dialogView.findViewById(R.id.et_internal_id);
@@ -171,6 +176,46 @@ public class AccountManagementActivity extends AppCompatActivity {
                 Toast.LENGTH_LONG).show();
             e.printStackTrace();
         }
+        */
+    }
+    
+    private void testShellCommands() {
+        new Thread(() -> {
+            StringBuilder results = new StringBuilder();
+            results.append("🧪 SHELL COMMAND TESTS\n\n");
+            
+            String testFile = "/data/data/com.scopely.monopolygo/files/DiskBasedCacheDirectory/WithBuddies.Services.User.0Production.dat";
+            
+            // Test 1: [ -f ]
+            String result1 = RootManager.runRootCommand(
+                "[ -f \"" + testFile + "\" ] && echo 'EXISTS' || echo 'NOT_FOUND'"
+            );
+            results.append("Test 1 - [ -f ]:\n").append(result1).append("\n\n");
+            
+            // Test 2: test -f
+            String result2 = RootManager.runRootCommand(
+                "test -f \"" + testFile + "\" && echo 'EXISTS' || echo 'NOT_FOUND'"
+            );
+            results.append("Test 2 - test -f:\n").append(result2).append("\n\n");
+            
+            // Test 3: ls
+            String result3 = RootManager.runRootCommand("ls -la \"" + testFile + "\" 2>&1");
+            results.append("Test 3 - ls:\n").append(result3).append("\n\n");
+            
+            // Test 4: find
+            String result4 = RootManager.runRootCommand(
+                "find /data/data/com.scopely.monopolygo -name '*WithBuddies*' 2>/dev/null"
+            );
+            results.append("Test 4 - find:\n").append(result4).append("\n\n");
+            
+            runOnUiThread(() -> {
+                new AlertDialog.Builder(this)
+                    .setTitle("Shell Tests")
+                    .setMessage(results.toString())
+                    .setPositiveButton("OK", null)
+                    .show();
+            });
+        }).start();
     }
     
     private void backupAccount(String internalId, String note, boolean includeFbToken) {
