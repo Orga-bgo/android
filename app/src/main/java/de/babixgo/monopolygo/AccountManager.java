@@ -1,5 +1,7 @@
 package de.babixgo.monopolygo;
 
+import android.os.Build;
+import android.os.Environment;
 import android.util.Log;
 import java.io.File;
 import com.opencsv.CSVReader;
@@ -185,34 +187,58 @@ public class AccountManager {
             e.printStackTrace();
         }
         
-        // 2. Temporäres Verzeichnis erstellen (im öffentlichen Bereich)
+        // 2. Berechtigungen prüfen
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                Log.e("BabixGO", "FEHLER: MANAGE_EXTERNAL_STORAGE Berechtigung fehlt!");
+                return false;
+            }
+        }
+        
+        // 3. Temporäres Verzeichnis erstellen (im öffentlichen Bereich)
         String tempDir = TEMP_PATH + accountName + "/";
         File tempDirFile = new File(tempDir);
         
+        Log.d("BabixGO", "Erstelle Temp-Verzeichnis: " + tempDir);
+        
         // Altes Temp-Verzeichnis löschen falls vorhanden
         if (tempDirFile.exists()) {
+            Log.d("BabixGO", "Lösche altes Temp-Verzeichnis");
             deleteRecursive(tempDirFile);
         }
         
-        tempDirFile.mkdirs();
+        boolean dirCreated = tempDirFile.mkdirs();
+        if (!dirCreated && !tempDirFile.exists()) {
+            Log.e("BabixGO", "FEHLER: Temp-Verzeichnis konnte nicht erstellt werden!");
+            return false;
+        }
         
-        // 3. REQUIRED FILE kopieren
+        Log.d("BabixGO", "Temp-Verzeichnis erstellt: " + tempDirFile.exists());
+        
+        // 4. REQUIRED FILE prüfen
         if (!ZipManager.fileExistsWithRoot(REQUIRED_FILE)) {
+            Log.e("BabixGO", "FEHLER: Required File nicht gefunden: " + REQUIRED_FILE);
             deleteRecursive(tempDirFile);
             return false;
         }
         
+        Log.d("BabixGO", "Required File gefunden, kopiere...");
+        
+        // 5. REQUIRED FILE kopieren
         boolean success = ZipManager.copyFileWithRoot(
             REQUIRED_FILE, 
             tempDir + "account.dat"
         );
         
         if (!success) {
+            Log.e("BabixGO", "FEHLER: Kopieren der Account-Datei fehlgeschlagen!");
             deleteRecursive(tempDirFile);
             return false;
         }
         
-        // 4. Optionale Dateien kopieren
+        Log.d("BabixGO", "Account-Datei kopiert");
+        
+        // 6. Optionale Dateien kopieren
         List<String> copiedFiles = new ArrayList<>();
         copiedFiles.add("account.dat");
         
@@ -227,11 +253,12 @@ public class AccountManager {
                 
                 if (copied) {
                     copiedFiles.add(fileName);
+                    Log.d("BabixGO", "Optional kopiert: " + fileName);
                 }
             }
         }
         
-        // 5. FB-Token kopieren (falls gewünscht)
+        // 7. FB-Token kopieren (falls gewünscht)
         if (includeFbToken && ZipManager.fileExistsWithRoot(FB_TOKEN_FILE)) {
             boolean copied = ZipManager.copyFileWithRoot(
                 FB_TOKEN_FILE, 
@@ -240,32 +267,38 @@ public class AccountManager {
             
             if (copied) {
                 copiedFiles.add("fb_token.xml");
+                Log.d("BabixGO", "FB-Token kopiert");
             }
         }
         
-        // 6. Backup-Info erstellen
+        // 8. Backup-Info erstellen
         createFileList(tempDir, copiedFiles, includeFbToken);
         
-        // 7. Berechtigungen für Temp-Dateien setzen (lesbar für App)
+        // 9. Berechtigungen für Temp-Dateien setzen (lesbar für App)
         RootManager.runRootCommand("chmod -R 777 \"" + tempDir + "\"");
         
-        // 8. ZIP erstellen (Java-basiert, kein externes Tool)
+        Log.d("BabixGO", "Erstelle ZIP...");
+        
+        // 10. ZIP erstellen (Java-basiert, kein externes Tool)
         String zipFile = TEMP_PATH + accountName + ".zip";
         boolean zipSuccess = ZipManager.zipDirectory(tempDir, zipFile);
         
         if (!zipSuccess) {
+            Log.e("BabixGO", "FEHLER: ZIP-Erstellung fehlgeschlagen!");
             deleteRecursive(tempDirFile);
             return false;
         }
         
-        // 9. Zielverzeichnis erstellen
+        Log.d("BabixGO", "ZIP erstellt: " + zipFile);
+        
+        // 11. Zielverzeichnis erstellen
         String targetDir = ACCOUNTS_EIGENE + accountName + "/";
         File target = new File(targetDir);
         if (!target.exists()) {
             target.mkdirs();
         }
         
-        // 10. ZIP in finales Verzeichnis verschieben
+        // 12. ZIP in finales Verzeichnis verschieben
         String finalZip = targetDir + accountName + ".zip";
         File zipFileObj = new File(zipFile);
         File finalZipObj = new File(finalZip);
@@ -277,14 +310,21 @@ public class AccountManager {
         
         boolean moved = zipFileObj.renameTo(finalZipObj);
         
-        // 11. Aufräumen
+        Log.d("BabixGO", "ZIP verschoben: " + moved + " nach " + finalZip);
+        
+        // 13. Aufräumen
         deleteRecursive(tempDirFile);
         if (zipFileObj.exists()) {
             zipFileObj.delete();
         }
         
-        // 12. Erfolgsprüfung
-        return moved && finalZipObj.exists() && finalZipObj.length() > 0;
+        // 14. Erfolgsprüfung
+        boolean finalSuccess = moved && finalZipObj.exists() && finalZipObj.length() > 0;
+        
+        Log.d("BabixGO", "Backup erfolgreich: " + finalSuccess + 
+            " (Größe: " + finalZipObj.length() + " bytes)");
+        
+        return finalSuccess;
     }
     
     /**
