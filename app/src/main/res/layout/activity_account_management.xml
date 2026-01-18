@@ -45,7 +45,7 @@
         android:id="@+id/btn_settings"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Einstellungen"
+        android:text="@string/settings"
         android:layout_marginBottom="24dp" />
 
     <ScrollView

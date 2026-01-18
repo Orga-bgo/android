@@ -9,7 +9,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.button.MaterialButton;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.Button;
 import java.io.File;
 import java.io.FileWriter;
 import java.text.SimpleDateFormat;
@@ -357,7 +356,7 @@ public class AccountManagementActivity extends AppCompatActivity {
      */
     private void showSettingsDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Einstellungen");
+        builder.setTitle(R.string.settings);
         
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_settings, null);
         EditText etBackupPath = dialogView.findViewById(R.id.et_backup_output_path);
@@ -376,22 +375,30 @@ public class AccountManagementActivity extends AppCompatActivity {
             String prefix = etPrefix.getText().toString().trim();
             
             // Pfade validieren (sollten mit / enden)
-            if (!backupPath.isEmpty() && !backupPath.endsWith("/")) {
-                backupPath += "/";
-            }
-            if (!restorePath.isEmpty() && !restorePath.endsWith("/")) {
-                restorePath += "/";
-            }
+            backupPath = ensureTrailingSlash(backupPath);
+            restorePath = ensureTrailingSlash(restorePath);
             
             // Einstellungen speichern
             settingsManager.setBackupOutputPath(backupPath);
             settingsManager.setRestoreInputPath(restorePath);
             settingsManager.setNamePrefix(prefix);
             
-            Toast.makeText(this, "Einstellungen gespeichert", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, R.string.settings_saved, Toast.LENGTH_SHORT).show();
         });
         builder.setNegativeButton("Abbrechen", null);
         builder.show();
+    }
+    
+    /**
+     * Ensure that a path ends with a trailing slash.
+     * @param path The path to validate
+     * @return The path with a trailing slash, or empty string if input was empty
+     */
+    private String ensureTrailingSlash(String path) {
+        if (!path.isEmpty() && !path.endsWith("/")) {
+            return path + "/";
+        }
+        return path;
     }
     
     /**
