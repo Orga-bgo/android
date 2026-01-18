@@ -21,13 +21,10 @@ public class ZipManager {
                 return false;
             }
             
-            FileOutputStream fos = new FileOutputStream(zipFilePath);
-            ZipOutputStream zos = new ZipOutputStream(fos);
-            
-            zipDirectoryRecursive(sourceDirFile, sourceDirFile, zos);
-            
-            zos.close();
-            fos.close();
+            try (FileOutputStream fos = new FileOutputStream(zipFilePath);
+                 ZipOutputStream zos = new ZipOutputStream(fos)) {
+                zipDirectoryRecursive(sourceDirFile, sourceDirFile, zos);
+            }
             
             return true;
         } catch (Exception e) {
@@ -115,7 +112,9 @@ public class ZipManager {
                     // Additional security check: ensure file is within destDir
                     String canonicalDestPath = destDirFile.getCanonicalPath();
                     String canonicalFilePath = newFile.getCanonicalPath();
-                    if (!canonicalFilePath.startsWith(canonicalDestPath + File.separator)) {
+                    // Check if path starts with destination + separator (prevents bypass)
+                    if (!canonicalFilePath.equals(canonicalDestPath) && 
+                        !canonicalFilePath.startsWith(canonicalDestPath + File.separator)) {
                         zis.closeEntry();
                         continue;
                     }

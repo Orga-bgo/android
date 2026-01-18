@@ -223,23 +223,23 @@ public class AccountManagementActivity extends AppCompatActivity {
             File csvFile = new File(csvPath);
             boolean writeHeader = !csvFile.exists();
             
-            FileWriter fw = new FileWriter(csvFile, true);
-            if (writeHeader) {
-                fw.write("InterneID,Datum,FBToken,Notiz\n");
+            try (FileWriter fw = new FileWriter(csvFile, true)) {
+                if (writeHeader) {
+                    fw.write("InterneID,Datum,FBToken,Notiz\n");
+                }
+                
+                String date = getCurrentDate();
+                String fb = fbIncluded ? "JA" : "NEIN";
+                
+                // Sanitize CSV fields to prevent injection
+                String sanitizedId = sanitizeCSV(id);
+                String sanitizedDate = sanitizeCSV(date);
+                String sanitizedFb = sanitizeCSV(fb);
+                String sanitizedNote = sanitizeCSV(note);
+                
+                fw.write(String.format("%s,%s,%s,\"%s\"\n", 
+                    sanitizedId, sanitizedDate, sanitizedFb, sanitizedNote));
             }
-            
-            String date = getCurrentDate();
-            String fb = fbIncluded ? "JA" : "NEIN";
-            
-            // Sanitize CSV fields to prevent injection
-            String sanitizedId = sanitizeCSV(id);
-            String sanitizedDate = sanitizeCSV(date);
-            String sanitizedFb = sanitizeCSV(fb);
-            String sanitizedNote = sanitizeCSV(note);
-            
-            fw.write(String.format("%s,%s,%s,\"%s\"\n", 
-                sanitizedId, sanitizedDate, sanitizedFb, sanitizedNote));
-            fw.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -254,9 +254,11 @@ public class AccountManagementActivity extends AppCompatActivity {
         }
         
         // Remove dangerous characters that could trigger formula execution
+        // or command injection in spreadsheet applications
         if (value.startsWith("=") || value.startsWith("+") || 
             value.startsWith("-") || value.startsWith("@") ||
-            value.startsWith("\t") || value.startsWith("\r")) {
+            value.startsWith("\t") || value.startsWith("\r") ||
+            value.startsWith("|") || value.startsWith(";")) {
             value = "'" + value; // Prefix with single quote to prevent formula execution
         }
         
