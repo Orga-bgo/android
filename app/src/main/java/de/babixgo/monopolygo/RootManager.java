@@ -14,12 +14,15 @@ public class RootManager {
     private static boolean hasRootAccess = false;
     private static boolean rootChecked = false;
     
+    // Configuration constants
+    private static final int SHELL_TIMEOUT_SECONDS = 10;
+    
     static {
         // Configure libsu Shell
         Shell.enableVerboseLogging = android.util.Log.isLoggable("BabixGO", android.util.Log.DEBUG);
         Shell.setDefaultBuilder(Shell.Builder.create()
             .setFlags(Shell.FLAG_REDIRECT_STDERR)
-            .setTimeout(10));
+            .setTimeout(SHELL_TIMEOUT_SECONDS));
     }
 
     /**
@@ -28,7 +31,12 @@ public class RootManager {
      */
     public static boolean isRooted() {
         // libsu handles root detection properly across all Android versions
-        return Shell.isAppGrantedRoot() != null && Shell.isAppGrantedRoot();
+        Boolean granted = Shell.isAppGrantedRoot();
+        if (granted == null) {
+            // Root status is undetermined (e.g., first time, not yet checked)
+            return false;
+        }
+        return granted;
     }
 
     /**
@@ -45,7 +53,15 @@ public class RootManager {
             // libsu automatically handles root request dialog and compatibility
             // Works with Magisk 24+, KernelSU, and older SuperSU
             Boolean granted = Shell.isAppGrantedRoot();
-            hasRootAccess = granted != null && granted;
+            
+            if (granted == null) {
+                // Root status undetermined - treat as denied
+                android.util.Log.w("BabixGO", "Root status undetermined");
+                hasRootAccess = false;
+            } else {
+                hasRootAccess = granted;
+            }
+            
             rootChecked = true;
             
             android.util.Log.d("BabixGO", "Root access: " + (hasRootAccess ? "granted" : "denied"));
@@ -112,7 +128,8 @@ public class RootManager {
                 for (String line : result.getErr()) {
                     errors.append(line).append("\n");
                 }
-                android.util.Log.w("BabixGO", "Command stderr: " + errors.toString());
+                String errorStr = errors.toString();
+                android.util.Log.w("BabixGO", "Command stderr: " + errorStr);
             }
             
             // Check if command succeeded
