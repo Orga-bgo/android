@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#000000</color>
+    <color name="colorAccent">#FF5722</color>
+    <color name="colorPrimary">#2196F3</color>
+    <color name="colorPrimaryDark">#1976D2</color>
+    <color name="white">#FFFFFF</color>
+    <string name="account_management">Accountverwaltung</string>
+    <string name="add_customer">Kunde hinzufügen</string>
+    <string name="app_name">MonopolyGo Manager</string>
+    <string name="backup_customer_account">Kunden Account sichern</string>
+    <string name="backup_own_account">Eigenen Account sichern</string>
+    <string name="copy_links">Kopiere Links</string>
+    <string name="create_assignment">Zuweisung erstellen</string>
+    <string name="download_install">Download und Installation</string>
+    <string name="friendship_bar">Freundschaftsbalken</string>
+    <string name="partner_event">Partnerevent</string>
+    <string name="restore_account">Account wiederherstellen</string>
+    <string name="root_required">Root-Zugriff erforderlich</string>
+    <string name="root_warning">Diese App benötigt Root-Zugriff für volle Funktionalität</string>
+    <string name="select_accounts">Eigene Accounts wählen</string>
+    <string name="shortio_api_key" translatable="false">YOUR_SHORTIO_API_KEY_HERE</string>
+    <string name="shortio_domain" translatable="false">your-shortio-domain.example.com</string>
+    <string name="team_setup">Team zusammenstellen</string>
+    <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+        <item name="colorPrimary">#2196F3</item>
+        <item name="colorPrimaryDark">#1976D2</item>
+        <item name="colorAccent">#FF5722</item>
+    </style>
+</resources>

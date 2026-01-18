@@ -167,7 +167,10 @@ public class AccountManagementActivity extends AppCompatActivity {
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
             String date = sdf.format(new Date());
             
-            fw.write(String.format("%s,%s,\"%s\"\n", id, date, note));
+            // Properly escape the note field to prevent CSV injection
+            String escapedNote = note.replace("\"", "\"\""); // Escape quotes by doubling them
+            
+            fw.write(String.format("%s,%s,\"%s\"\n", id, date, escapedNote));
             fw.close();
         } catch (Exception e) {
             e.printStackTrace();
