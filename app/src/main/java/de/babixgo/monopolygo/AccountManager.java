@@ -494,6 +494,18 @@ public class AccountManager {
     }
     
     /**
+     * Helper method: Escape shell argument to prevent injection
+     * Uses single quotes and escapes any single quotes in the argument
+     */
+    private static String escapeShellArg(String arg) {
+        if (arg == null) {
+            return "''";
+        }
+        // Replace single quotes with '\'' (end quote, escaped quote, start quote)
+        return "'" + arg.replace("'", "'\\''") + "'";
+    }
+    
+    /**
      * Hilfsmethode: Optionale Dateien wiederherstellen
      */
     private static void restoreOptionalFiles(String tempDir) {
@@ -545,10 +557,16 @@ public class AccountManager {
     }
     
     /**
-     * Backup Account - VEREINFACHTE VERSION (wie Original)
-     * Keine komplexen Prüfungen, einfach kopieren
+     * Backup Account - SIMPLIFIED VERSION (like original)
+     * No complex checks, just copy
      */
     public static boolean backupAccountSimple(String accountName, boolean includeFbToken) {
+        // Validate accountName to prevent command injection
+        if (!isValidAccountName(accountName)) {
+            android.util.Log.e("BabixGO", "Invalid account name: " + accountName);
+            return false;
+        }
+        
         android.util.Log.d("BabixGO", "=== BACKUP START (Simple) ===");
         android.util.Log.d("BabixGO", "Account: " + accountName);
         android.util.Log.d("BabixGO", "FB-Token: " + includeFbToken);
@@ -589,7 +607,7 @@ public class AccountManager {
         
         // 4. Kopiere Account-Datei - SIMPEL wie Original
         String destFile = tempDir + "account.dat";
-        String command = "cp '" + accountFile + "' '" + destFile + "'";
+        String command = "cp " + escapeShellArg(accountFile) + " " + escapeShellArg(destFile);
         
         android.util.Log.d("BabixGO", "Executing: " + command);
         String result = RootManager.runRootCommand(command);
@@ -624,8 +642,8 @@ public class AccountManager {
         // 6. Backup-Info
         createFileList(tempDir, copiedFiles, includeFbToken);
         
-        // 7. Berechtigungen
-        RootManager.runRootCommand("chmod -R 777 '" + tempDir + "'");
+        // 7. Berechtigungen (more restrictive than 777)
+        RootManager.runRootCommand("chmod -R 755 " + escapeShellArg(tempDir));
         
         android.util.Log.d("BabixGO", "Erstelle ZIP...");
         
@@ -676,10 +694,10 @@ public class AccountManager {
     }
     
     /**
-     * Hilfsmethode: Kopiere optionale Datei
+     * Helper method: Copy optional file
      */
     private static void copyOptionalFile(String source, String dest, List<String> fileList) {
-        String command = "cp '" + source + "' '" + dest + "' 2>/dev/null";
+        String command = "cp " + escapeShellArg(source) + " " + escapeShellArg(dest) + " 2>/dev/null";
         RootManager.runRootCommand(command);
         
         if (new File(dest).exists()) {
@@ -689,7 +707,7 @@ public class AccountManager {
     }
     
     /**
-     * Suche Account-Datei - VEREINFACHT
+     * Find Account-File - SIMPLIFIED
      */
     private static String findAccountFile() {
         String[] possiblePaths = {
@@ -700,7 +718,7 @@ public class AccountManager {
         
         for (String path : possiblePaths) {
             // SIMPLE CHECK: Versuche zu lesen
-            String cmd = "ls '" + path + "' 2>&1";
+            String cmd = "ls " + escapeShellArg(path) + " 2>&1";
             String result = RootManager.runRootCommand(cmd);
             
             if (!result.contains("No such file")) {
@@ -709,8 +727,8 @@ public class AccountManager {
             }
         }
         
-        // Fallback: find
-        String cmd = "find /data/data/" + PACKAGE_NAME + " -name '*WithBuddies.Services.User*.dat' 2>/dev/null | head -n 1";
+        // Fallback: find (PACKAGE_NAME is safe, from constant)
+        String cmd = "find " + escapeShellArg("/data/data/" + PACKAGE_NAME) + " -name '*WithBuddies.Services.User*.dat' 2>/dev/null | head -n 1";
         String result = RootManager.runRootCommand(cmd);
         
         if (result != null && result.trim().length() > 0 && !result.contains("Error")) {
