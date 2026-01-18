@@ -384,16 +384,16 @@ public class AccountManager {
         }
         
         // Write file using Java instead of shell echo to avoid command injection
-        try {
-            File infoFile = new File(tempDir + "backup_info.txt");
-            java.io.FileWriter writer = new java.io.FileWriter(infoFile);
+        File infoFile = new File(tempDir + "backup_info.txt");
+        try (java.io.FileWriter writer = new java.io.FileWriter(infoFile)) {
             writer.write(fileList.toString());
-            writer.close();
-            // Set permissions via root
-            RootManager.runRootCommand("chmod 644 \"" + tempDir + "backup_info.txt\"");
+            // Set permissions via root after closing the file
         } catch (Exception e) {
             Log.e(TAG, "Failed to create backup info file", e);
+            return;
         }
+        // Set permissions via root
+        RootManager.runRootCommand("chmod 644 \"" + tempDir + "backup_info.txt\"");
     }
     
     /**
@@ -401,6 +401,10 @@ public class AccountManager {
      */
     private static boolean isValidAccountName(String accountName) {
         if (accountName == null || accountName.isEmpty()) {
+            return false;
+        }
+        // Prevent excessively long account names that could cause path issues
+        if (accountName.length() > 100) {
             return false;
         }
         // Only allow alphanumeric characters, underscores, hyphens, and dots

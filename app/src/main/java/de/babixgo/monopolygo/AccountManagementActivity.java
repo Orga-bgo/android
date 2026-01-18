@@ -212,12 +212,11 @@ public class AccountManagementActivity extends AppCompatActivity {
     }
     
     private void saveMetadata(String id, String note, boolean fbIncluded) {
-        try {
-            String csvPath = AccountManager.getAccountsEigenePath() + "Accountinfos.csv";
-            File csvFile = new File(csvPath);
-            boolean writeHeader = !csvFile.exists();
-            
-            FileWriter fw = new FileWriter(csvFile, true);
+        String csvPath = AccountManager.getAccountsEigenePath() + "Accountinfos.csv";
+        File csvFile = new File(csvPath);
+        boolean writeHeader = !csvFile.exists();
+        
+        try (FileWriter fw = new FileWriter(csvFile, true)) {
             if (writeHeader) {
                 fw.write("InterneID,Datum,FBToken,Notiz\n");
             }
@@ -233,7 +232,6 @@ public class AccountManagementActivity extends AppCompatActivity {
             
             fw.write(String.format("\"%s\",\"%s\",\"%s\",\"%s\"\n", 
                 escapedId, escapedDate, escapedFb, escapedNote));
-            fw.close();
         } catch (Exception e) {
             e.printStackTrace();
         }
