@@ -6,6 +6,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 import de.babixgo.monopolygo.R;
 import de.babixgo.monopolygo.models.Account;
@@ -78,9 +79,9 @@ public class AccountListAdapter extends RecyclerView.Adapter<AccountListAdapter.
             
             // Color error text red if error exists
             if (account.isHasError()) {
-                tvError.setTextColor(itemView.getContext().getColor(R.color.error_red));
+                tvError.setTextColor(ContextCompat.getColor(itemView.getContext(), R.color.error_red));
             } else {
-                tvError.setTextColor(itemView.getContext().getColor(R.color.text_dark));
+                tvError.setTextColor(ContextCompat.getColor(itemView.getContext(), R.color.text_dark));
             }
         }
         

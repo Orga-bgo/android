@@ -8,6 +8,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import de.babixgo.monopolygo.AccountManager;
 import de.babixgo.monopolygo.R;
 import de.babixgo.monopolygo.database.AccountRepository;
@@ -94,7 +95,7 @@ public class AccountDetailActivity extends AppCompatActivity {
         
         tvSuspensionStatus.setText(account.getSuspensionSummary());
         tvErrorStatus.setText(account.getErrorStatusText());
-        tvErrorStatus.setTextColor(getColor(
+        tvErrorStatus.setTextColor(ContextCompat.getColor(this,
             account.isHasError() ? R.color.error_red : R.color.text_dark));
         
         tvSsaid.setText(account.getSsaid() != null ? account.getSsaid() : "Nicht verfügbar");
