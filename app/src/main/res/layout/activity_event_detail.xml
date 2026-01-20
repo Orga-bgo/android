@@ -55,6 +55,15 @@
                     android:layout_marginStart="8dp"
                     android:text="+ Kunde hinzufügen" />
             </LinearLayout>
+            
+            <!-- Execute Event Button -->
+            <Button
+                android:id="@+id/btn_execute_event"
+                style="@style/BabixButton.Green"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="▶ Event ausführen" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
     
@@ -116,6 +125,15 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="Acc 3"
+                android:textSize="12sp"
+                android:textColor="@color/text_gray"
+                android:textStyle="bold" />
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Acc 4"
                 android:textSize="12sp"
                 android:textColor="@color/text_gray"
                 android:textStyle="bold" />

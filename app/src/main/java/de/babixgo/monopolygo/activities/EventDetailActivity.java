@@ -3,22 +3,30 @@ package de.babixgo.monopolygo.activities;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.textfield.TextInputEditText;
 import de.babixgo.monopolygo.R;
 import de.babixgo.monopolygo.adapters.TeamListAdapter;
+import de.babixgo.monopolygo.database.AccountRepository;
 import de.babixgo.monopolygo.database.EventRepository;
 import de.babixgo.monopolygo.database.TeamRepository;
 import de.babixgo.monopolygo.database.CustomerRepository;
+import de.babixgo.monopolygo.models.Account;
 import de.babixgo.monopolygo.models.Event;
 import de.babixgo.monopolygo.models.Team;
 import de.babixgo.monopolygo.models.Customer;
+import de.babixgo.monopolygo.utils.EventExecutor;
+import java.util.ArrayList;
+import java.util.List;
 
 public class EventDetailActivity extends AppCompatActivity {
     
@@ -28,7 +36,7 @@ public class EventDetailActivity extends AppCompatActivity {
     private CustomerRepository customerRepository;
     
     private TextView tvEventTitle;
-    private Button btnAddTeam, btnAddCustomer;
+    private Button btnAddTeam, btnAddCustomer, btnExecuteEvent;
     private RecyclerView rvTeams;
     private TeamListAdapter adapter;
     
@@ -49,10 +57,12 @@ public class EventDetailActivity extends AppCompatActivity {
         tvEventTitle = findViewById(R.id.tv_event_title);
         btnAddTeam = findViewById(R.id.btn_add_team);
         btnAddCustomer = findViewById(R.id.btn_add_customer);
+        btnExecuteEvent = findViewById(R.id.btn_execute_event);
         rvTeams = findViewById(R.id.rv_teams);
         
         btnAddTeam.setOnClickListener(v -> showAddTeamDialog());
         btnAddCustomer.setOnClickListener(v -> showAddCustomerDialog());
+        btnExecuteEvent.setOnClickListener(v -> showExecuteConfirmation());
         
         setupRecyclerView();
     }
@@ -204,8 +214,269 @@ public class EventDetailActivity extends AppCompatActivity {
     }
     
     private void openTeamEdit(Team team) {
-        // TODO: Implement team editing
-        Toast.makeText(this, "Team bearbeiten: " + team.getName(), Toast.LENGTH_SHORT).show();
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_edit_team, null);
+        
+        // Initialize views
+        TextInputEditText etTeamName = dialogView.findViewById(R.id.et_team_name);
+        Spinner spinnerCustomer = dialogView.findViewById(R.id.spinner_customer);
+        Spinner spinnerSlot1 = dialogView.findViewById(R.id.spinner_slot_1);
+        Spinner spinnerSlot2 = dialogView.findViewById(R.id.spinner_slot_2);
+        Spinner spinnerSlot3 = dialogView.findViewById(R.id.spinner_slot_3);
+        Spinner spinnerSlot4 = dialogView.findViewById(R.id.spinner_slot_4);
+        Button btnCancel = dialogView.findViewById(R.id.btn_cancel);
+        Button btnSave = dialogView.findViewById(R.id.btn_save);
+        
+        // Set current team name
+        etTeamName.setText(team.getName());
+        
+        // Load customers for spinner
+        loadCustomersIntoSpinner(spinnerCustomer, team.getCustomerId());
+        
+        // Load accounts for slot spinners
+        loadAccountsIntoSlotSpinners(
+            spinnerSlot1, spinnerSlot2, spinnerSlot3, spinnerSlot4,
+            team.getSlot1AccountId(), team.getSlot2AccountId(), 
+            team.getSlot3AccountId(), team.getSlot4AccountId()
+        );
+        
+        AlertDialog dialog = new AlertDialog.Builder(this)
+            .setTitle("Team bearbeiten")
+            .setView(dialogView)
+            .setCancelable(true)
+            .create();
+        
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        
+        btnSave.setOnClickListener(v -> {
+            // Update team
+            team.setName(etTeamName.getText().toString().trim());
+            
+            // Get selected customer
+            CustomerSpinnerItem selectedCustomer = (CustomerSpinnerItem) spinnerCustomer.getSelectedItem();
+            if (selectedCustomer != null && selectedCustomer.id != -1) {
+                team.setCustomerId(selectedCustomer.id);
+            } else {
+                team.setCustomerId(null);
+            }
+            
+            // Get selected accounts
+            AccountSpinnerItem slot1 = (AccountSpinnerItem) spinnerSlot1.getSelectedItem();
+            AccountSpinnerItem slot2 = (AccountSpinnerItem) spinnerSlot2.getSelectedItem();
+            AccountSpinnerItem slot3 = (AccountSpinnerItem) spinnerSlot3.getSelectedItem();
+            AccountSpinnerItem slot4 = (AccountSpinnerItem) spinnerSlot4.getSelectedItem();
+            
+            team.setSlot1AccountId(slot1 != null && slot1.id != -1 ? slot1.id : null);
+            team.setSlot2AccountId(slot2 != null && slot2.id != -1 ? slot2.id : null);
+            team.setSlot3AccountId(slot3 != null && slot3.id != -1 ? slot3.id : null);
+            team.setSlot4AccountId(slot4 != null && slot4.id != -1 ? slot4.id : null);
+            
+            team.setSlot1Name(slot1 != null && slot1.id != -1 ? slot1.name : null);
+            team.setSlot2Name(slot2 != null && slot2.id != -1 ? slot2.name : null);
+            team.setSlot3Name(slot3 != null && slot3.id != -1 ? slot3.name : null);
+            team.setSlot4Name(slot4 != null && slot4.id != -1 ? slot4.name : null);
+            
+            // Save to database
+            saveTeam(team);
+            dialog.dismiss();
+        });
+        
+        dialog.show();
+    }
+    
+    // Spinner Item Classes
+    private static class CustomerSpinnerItem {
+        long id;
+        String name;
+        
+        CustomerSpinnerItem(long id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+        
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+    
+    private static class AccountSpinnerItem {
+        long id;
+        String name;
+        
+        AccountSpinnerItem(long id, String name) {
+            this.id = id;
+            this.name = name;
+        }
+        
+        @Override
+        public String toString() {
+            return name;
+        }
+    }
+    
+    private void loadCustomersIntoSpinner(Spinner spinner, Long selectedCustomerId) {
+        customerRepository.getAllCustomers()
+            .thenAccept(customers -> runOnUiThread(() -> {
+                List<CustomerSpinnerItem> items = new ArrayList<>();
+                items.add(new CustomerSpinnerItem(-1, "-- Kein Kunde --"));
+                
+                int selectedPosition = 0;
+                for (int i = 0; i < customers.size(); i++) {
+                    Customer customer = customers.get(i);
+                    items.add(new CustomerSpinnerItem(customer.getId(), customer.getName()));
+                    if (selectedCustomerId != null && customer.getId() == selectedCustomerId) {
+                        selectedPosition = i + 1;
+                    }
+                }
+                
+                ArrayAdapter<CustomerSpinnerItem> adapter = new ArrayAdapter<>(
+                    this, android.R.layout.simple_spinner_item, items);
+                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+                spinner.setAdapter(adapter);
+                spinner.setSelection(selectedPosition);
+            }))
+            .exceptionally(throwable -> {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, 
+                        "Fehler beim Laden der Kunden", 
+                        Toast.LENGTH_SHORT).show();
+                });
+                return null;
+            });
+    }
+    
+    private void loadAccountsIntoSlotSpinners(
+        Spinner slot1, Spinner slot2, Spinner slot3, Spinner slot4,
+        Long selectedId1, Long selectedId2, Long selectedId3, Long selectedId4
+    ) {
+        AccountRepository accountRepo = new AccountRepository();
+        accountRepo.getAllAccounts()
+            .thenAccept(accounts -> runOnUiThread(() -> {
+                List<AccountSpinnerItem> items = new ArrayList<>();
+                items.add(new AccountSpinnerItem(-1, "-- Leer --"));
+                
+                for (Account account : accounts) {
+                    items.add(new AccountSpinnerItem(account.getId(), account.getName()));
+                }
+                
+                // Setup each spinner
+                setupAccountSpinner(slot1, items, selectedId1);
+                setupAccountSpinner(slot2, items, selectedId2);
+                setupAccountSpinner(slot3, items, selectedId3);
+                setupAccountSpinner(slot4, items, selectedId4);
+            }))
+            .exceptionally(throwable -> {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, 
+                        "Fehler beim Laden der Accounts", 
+                        Toast.LENGTH_SHORT).show();
+                });
+                return null;
+            });
+    }
+    
+    private void setupAccountSpinner(
+        Spinner spinner, 
+        List<AccountSpinnerItem> items, 
+        Long selectedId
+    ) {
+        ArrayAdapter<AccountSpinnerItem> adapter = new ArrayAdapter<>(
+            this, android.R.layout.simple_spinner_item, items);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+        
+        // Set selection
+        if (selectedId != null) {
+            for (int i = 0; i < items.size(); i++) {
+                if (items.get(i).id == selectedId) {
+                    spinner.setSelection(i);
+                    break;
+                }
+            }
+        }
+    }
+    
+    private void saveTeam(Team team) {
+        teamRepository.updateTeam(team)
+            .thenRun(() -> runOnUiThread(() -> {
+                Toast.makeText(this, "Team gespeichert", Toast.LENGTH_SHORT).show();
+                loadTeams(); // Refresh
+            }))
+            .exceptionally(throwable -> {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, 
+                        "Fehler beim Speichern: " + throwable.getMessage(), 
+                        Toast.LENGTH_LONG).show();
+                });
+                return null;
+            });
+    }
+    
+    private void showExecuteConfirmation() {
+        new AlertDialog.Builder(this)
+            .setTitle("Event ausführen")
+            .setMessage("Möchten Sie das Event automatisch ausführen?\n\n" +
+                       "Die App wird nacheinander:\n" +
+                       "1. Jeden Account wiederherstellen\n" +
+                       "2. MonopolyGo starten\n" +
+                       "3. Freundschaftslinks öffnen\n\n" +
+                       "Dies kann mehrere Minuten dauern.")
+            .setPositiveButton("Ja, starten", (dialog, which) -> executeEvent())
+            .setNegativeButton("Abbrechen", null)
+            .show();
+    }
+    
+    private void executeEvent() {
+        // Show progress dialog
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Event wird ausgeführt...");
+        builder.setCancelable(false);
+        
+        TextView messageView = new TextView(this);
+        messageView.setPadding(24, 24, 24, 24);
+        messageView.setTextSize(14);
+        builder.setView(messageView);
+        
+        AlertDialog progressDialog = builder.create();
+        progressDialog.show();
+        
+        EventExecutor executor = new EventExecutor(this, new EventExecutor.ExecutionListener() {
+            @Override
+            public void onStepComplete(String message) {
+                runOnUiThread(() -> {
+                    messageView.setText(messageView.getText() + "\n" + message);
+                });
+            }
+            
+            @Override
+            public void onTeamComplete(Team team) {
+                runOnUiThread(() -> {
+                    messageView.setText(messageView.getText() + "\n\n✓ Team " + team.getName() + " abgeschlossen\n");
+                });
+            }
+            
+            @Override
+            public void onExecutionComplete() {
+                runOnUiThread(() -> {
+                    progressDialog.dismiss();
+                    Toast.makeText(EventDetailActivity.this, 
+                        "Event vollständig ausgeführt!", 
+                        Toast.LENGTH_LONG).show();
+                });
+            }
+            
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    messageView.setText(messageView.getText() + "\n❌ FEHLER: " + error);
+                    Toast.makeText(EventDetailActivity.this, 
+                        "Fehler: " + error, 
+                        Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+        
+        executor.executeEvent(event.getId());
     }
     
     @Override

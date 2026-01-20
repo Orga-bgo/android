@@ -50,7 +50,7 @@ public class TeamListAdapter extends RecyclerView.Adapter<TeamListAdapter.ViewHo
     
     class ViewHolder extends RecyclerView.ViewHolder {
         TextView tvTeamName, tvCustomerName;
-        TextView tvSlot1, tvSlot2, tvSlot3;
+        TextView tvSlot1, tvSlot2, tvSlot3, tvSlot4;
         
         ViewHolder(View itemView) {
             super(itemView);
@@ -59,6 +59,7 @@ public class TeamListAdapter extends RecyclerView.Adapter<TeamListAdapter.ViewHo
             tvSlot1 = itemView.findViewById(R.id.tv_slot_1);
             tvSlot2 = itemView.findViewById(R.id.tv_slot_2);
             tvSlot3 = itemView.findViewById(R.id.tv_slot_3);
+            tvSlot4 = itemView.findViewById(R.id.tv_slot_4);
             
             itemView.setOnClickListener(v -> {
                 int position = getAdapterPosition();
@@ -74,6 +75,7 @@ public class TeamListAdapter extends RecyclerView.Adapter<TeamListAdapter.ViewHo
             tvSlot1.setText(team.getSlot1Name() != null ? team.getSlot1Name() : "---");
             tvSlot2.setText(team.getSlot2Name() != null ? team.getSlot2Name() : "---");
             tvSlot3.setText(team.getSlot3Name() != null ? team.getSlot3Name() : "---");
+            tvSlot4.setText(team.getSlot4Name() != null ? team.getSlot4Name() : "---");
         }
     }
 }
