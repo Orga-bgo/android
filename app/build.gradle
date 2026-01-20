@@ -28,26 +28,37 @@ android {
 }
 
 dependencies {
-    // Root access library
+    // Coroutines for async operations (compatible with Android)
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3'
+    
+    // Root access library (EXISTING - DO NOT REMOVE)
     implementation 'com.github.topjohnwu.libsu:core:5.2.2'
     
-    // HTTP client for Short.io API
+    // HTTP client for Short.io API and Supabase REST API (EXISTING - DO NOT REMOVE)
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     
-    // CSV processing
+    // CSV processing (EXISTING - DO NOT REMOVE)
     implementation 'com.opencsv:opencsv:5.9'
     
-    // JSON processing
+    // JSON processing (EXISTING - DO NOT REMOVE - will be used for Supabase)
     implementation 'com.google.code.gson:gson:2.10.1'
     
-    // Android support libraries
+    // Android support libraries (EXISTING - DO NOT REMOVE)
     implementation 'androidx.appcompat:appcompat:1.6.1'
     
-    // Material Design (für MaterialButton)
+    // Material Design (EXISTING - DO NOT REMOVE)
     implementation 'com.google.android.material:material:1.11.0'
     
-    // CardView
+    // CardView (EXISTING - DO NOT REMOVE)
     implementation 'androidx.cardview:cardview:1.0.0'
     
+    // ConstraintLayout (EXISTING - DO NOT REMOVE)
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    
+    // NEW: RecyclerView for list views
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    
+    // NEW: Lifecycle components for background tasks
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.2'
 }

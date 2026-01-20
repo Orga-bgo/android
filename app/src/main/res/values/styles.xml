@@ -2,15 +2,84 @@
 <resources>
     <!-- Base application theme - UPDATED to Material Components for MaterialButton support -->
     <style name="AppTheme" parent="Theme.MaterialComponents.Light.DarkActionBar">
-        <item name="colorPrimary">#2196F3</item>
-        <item name="colorPrimaryDark">#1976D2</item>
-        <item name="colorAccent">#FF5722</item>
+        <item name="colorPrimary">@color/primary_blue</item>
+        <item name="colorPrimaryDark">@color/primary_blue_dark</item>
+        <item name="colorAccent">@color/primary_blue</item>
         
-        <!-- Material Design 3 Colors (optional) -->
-        <item name="colorPrimaryVariant">#1976D2</item>
-        <item name="colorOnPrimary">#FFFFFF</item>
-        <item name="colorSecondary">#FF5722</item>
-        <item name="colorSecondaryVariant">#E64A19</item>
-        <item name="colorOnSecondary">#FFFFFF</item>
+        <!-- Material Design 3 Colors -->
+        <item name="colorPrimaryVariant">@color/primary_blue_dark</item>
+        <item name="colorOnPrimary">@android:color/white</item>
+        <item name="colorSecondary">@color/primary_blue</item>
+        <item name="colorSecondaryVariant">@color/primary_blue_dark</item>
+        <item name="colorOnSecondary">@android:color/white</item>
+    </style>
+
+    <!-- BabixGO Design System Styles -->
+    
+    <!-- Base Button Style -->
+    <style name="BabixButton" parent="Widget.MaterialComponents.Button">
+        <item name="cornerRadius">12dp</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:paddingTop">14dp</item>
+        <item name="android:paddingBottom">14dp</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <!-- Blue Button -->
+    <style name="BabixButton.Blue">
+        <item name="backgroundTint">@color/primary_blue</item>
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+
+    <!-- Gray Button -->
+    <style name="BabixButton.Gray">
+        <item name="backgroundTint">@color/button_gray</item>
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+
+    <!-- Red Button -->
+    <style name="BabixButton.Red">
+        <item name="backgroundTint">@color/error_red</item>
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+
+    <!-- Green Button -->
+    <style name="BabixButton.Green">
+        <item name="backgroundTint">@color/success_green</item>
+        <item name="android:textColor">@android:color/white</item>
+    </style>
+
+    <!-- Card Style -->
+    <style name="BabixCard" parent="Widget.MaterialComponents.CardView">
+        <item name="cardCornerRadius">15dp</item>
+        <item name="cardElevation">4dp</item>
+        <item name="android:layout_margin">8dp</item>
+        <item name="cardBackgroundColor">@color/card_white</item>
+    </style>
+
+    <!-- Text Styles -->
+    <style name="BabixText" parent="TextAppearance.AppCompat">
+        <item name="android:textColor">@color/text_dark</item>
+    </style>
+
+    <style name="BabixText.Header">
+        <item name="android:textSize">22sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="BabixText.Body">
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <style name="BabixText.Label">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/text_gray</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+    </style>
+
+    <style name="BabixText.Small">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">@color/text_light_gray</item>
     </style>
 </resources>
