@@ -19,6 +19,10 @@
 # Secrets
 app/src/main/res/values/secrets.xml
 
+# Supabase credentials (if you add real ones)
+# Uncomment the line below if you store real Supabase credentials in gradle.properties
+# gradle.properties
+
 # Logs
 *.log
 

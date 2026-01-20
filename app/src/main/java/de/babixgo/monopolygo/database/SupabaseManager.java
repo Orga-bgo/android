@@ -84,6 +84,10 @@ public class SupabaseManager {
                 throw new IOException("Unexpected response " + response);
             }
             
+            if (response.body() == null) {
+                throw new IOException("Response body is null");
+            }
+            
             String jsonData = response.body().string();
             Type listType = TypeToken.getParameterized(List.class, clazz).getType();
             return gson.fromJson(jsonData, listType);
@@ -108,6 +112,10 @@ public class SupabaseManager {
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 throw new IOException("Unexpected response " + response);
+            }
+            
+            if (response.body() == null) {
+                throw new IOException("Response body is null");
             }
             
             String jsonData = response.body().string();
@@ -135,6 +143,10 @@ public class SupabaseManager {
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 throw new IOException("Unexpected response " + response);
+            }
+            
+            if (response.body() == null) {
+                throw new IOException("Response body is null");
             }
             
             String jsonData = response.body().string();
@@ -165,6 +177,10 @@ public class SupabaseManager {
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
                 throw new IOException("Unexpected response " + response);
+            }
+            
+            if (response.body() == null) {
+                throw new IOException("Response body is null");
             }
             
             String jsonData = response.body().string();

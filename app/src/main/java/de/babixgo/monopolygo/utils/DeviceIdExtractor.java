@@ -51,7 +51,15 @@ public class DeviceIdExtractor {
             for (String file : fileList) {
                 if (file.trim().isEmpty()) continue;
                 
-                String content = RootManager.runRootCommand("cat \"" + file.trim() + "\"");
+                // Validate file path to prevent command injection
+                String trimmedFile = file.trim();
+                if (!trimmedFile.startsWith("/data/data/com.scopely.monopolygo/") || 
+                    trimmedFile.contains(";") || trimmedFile.contains("|") || 
+                    trimmedFile.contains("&") || trimmedFile.contains("`")) {
+                    continue; // Skip suspicious file paths
+                }
+                
+                String content = RootManager.runRootCommand("cat \"" + trimmedFile + "\"");
                 if (content == null || content.contains("Error")) continue;
                 
                 // Suche nach android_id oder ssaid
@@ -76,9 +84,12 @@ public class DeviceIdExtractor {
      */
     private static String extractValueFromXml(String xml, String key) {
         try {
+            // Escape key to prevent regex injection
+            String escapedKey = java.util.regex.Pattern.quote(key);
+            
             // Pattern: <string name="key">value</string>
             java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(
-                "<string\\s+name=\"" + key + "\"\\s*>([^<]+)</string>");
+                "<string\\s+name=\"" + escapedKey + "\"\\s*>([^<]+)</string>");
             java.util.regex.Matcher matcher = pattern.matcher(xml);
             
             if (matcher.find()) {
@@ -87,7 +98,7 @@ public class DeviceIdExtractor {
             
             // Alternative Pattern: <long name="key" value="12345" />
             pattern = java.util.regex.Pattern.compile(
-                "<long\\s+name=\"" + key + "\"\\s+value=\"([^\"]+)\"");
+                "<long\\s+name=\"" + escapedKey + "\"\\s+value=\"([^\"]+)\"");
             matcher = pattern.matcher(xml);
             
             if (matcher.find()) {

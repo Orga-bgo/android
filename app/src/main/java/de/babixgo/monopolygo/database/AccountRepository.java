@@ -201,6 +201,7 @@ public class AccountRepository {
     
     /**
      * Hilfsmethode für aktuellen Timestamp im ISO 8601 Format
+     * Creates a new SimpleDateFormat instance for thread safety
      */
     private String getCurrentTimestamp() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
