@@ -1,276 +1,279 @@
--- Supabase Database Schema for MonopolyGo Account Management
--- Run this in Supabase SQL Editor to set up the database
+-- ============================================================================
+-- BABIXGO MONOPOLYGO MANAGER - SUPABASE SCHEMA
+-- ============================================================================
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- ============================================
+-- ============================================================================
+-- ENUMS
+-- ============================================================================
+
+CREATE TYPE account_status AS ENUM ('active', 'suspended', 'banned', 'inactive');
+CREATE TYPE event_status AS ENUM ('planned', 'active', 'completed', 'cancelled');
+
+-- ============================================================================
 -- ACCOUNTS TABLE
--- ============================================
-CREATE TABLE IF NOT EXISTS accounts (
+-- ============================================================================
+
+CREATE TABLE accounts (
     id BIGSERIAL PRIMARY KEY,
-    
-    -- Basic Information
-    name TEXT NOT NULL UNIQUE,
-    user_id TEXT,
+    name VARCHAR(100) NOT NULL UNIQUE,
+    user_id VARCHAR(50), -- MonopolyGo User ID
     short_link TEXT,
     friend_link TEXT,
-    friend_code TEXT,
+    friend_code VARCHAR(50),
     
-    -- Account Status
-    account_status TEXT DEFAULT 'active' 
-        CHECK (account_status IN ('active', 'suspended', 'banned', 'inactive')),
+    -- Status
+    account_status account_status DEFAULT 'active',
     
-    -- Suspension Tracking
+    -- Suspension tracking
     suspension_0_days INTEGER DEFAULT 0,
     suspension_3_days INTEGER DEFAULT 0,
     suspension_7_days INTEGER DEFAULT 0,
     suspension_permanent BOOLEAN DEFAULT FALSE,
-    suspension_count INTEGER DEFAULT 0,
+    suspension_count INTEGER GENERATED ALWAYS AS (
+        suspension_0_days + suspension_3_days + suspension_7_days + 
+        CASE WHEN suspension_permanent THEN 1 ELSE 0 END
+    ) STORED,
     
-    -- Device Identifiers
-    ssaid TEXT,
-    gaid TEXT,
-    device_id TEXT,
+    -- Device IDs
+    ssaid VARCHAR(200),
+    gaid VARCHAR(200),
+    device_id VARCHAR(200),
     
     -- Flags
-    is_suspended BOOLEAN DEFAULT FALSE,
+    is_suspended BOOLEAN GENERATED ALWAYS AS (
+        suspension_0_days > 0 OR suspension_3_days > 0 OR 
+        suspension_7_days > 0 OR suspension_permanent
+    ) STORED,
     has_error BOOLEAN DEFAULT FALSE,
     
-    -- Notes
+    -- Metadata
     note TEXT,
+    last_played TIMESTAMP,
+    last_synced_at TIMESTAMP DEFAULT NOW(),
     
     -- Timestamps
-    last_played TIMESTAMP,
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW(),
     deleted_at TIMESTAMP
 );
 
--- ============================================
--- INDEXES FOR PERFORMANCE
--- ============================================
-CREATE INDEX IF NOT EXISTS idx_accounts_name ON accounts(name);
-CREATE INDEX IF NOT EXISTS idx_accounts_status ON accounts(account_status);
-CREATE INDEX IF NOT EXISTS idx_accounts_deleted ON accounts(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_accounts_user_id ON accounts(user_id);
-CREATE INDEX IF NOT EXISTS idx_accounts_created_at ON accounts(created_at);
-CREATE INDEX IF NOT EXISTS idx_accounts_last_played ON accounts(last_played);
+-- ============================================================================
+-- EVENTS TABLE (Tycoon Racers)
+-- ============================================================================
 
--- ============================================
--- ROW LEVEL SECURITY (RLS)
--- ============================================
-ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
+CREATE TABLE events (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    status event_status DEFAULT 'planned',
+    
+    -- Timestamps
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
 
--- ⚠️⚠️⚠️ CRITICAL SECURITY WARNING ⚠️⚠️⚠️
--- The policy below allows UNRESTRICTED anonymous access to ALL account data!
--- This is ONLY suitable for development/testing environments.
--- DO NOT deploy to production with this policy!
---
--- For production, you MUST implement proper authentication and replace
--- this policy with user-specific policies (see examples below).
--- ⚠️⚠️⚠️ END WARNING ⚠️⚠️⚠️
+-- ============================================================================
+-- CUSTOMERS TABLE
+-- ============================================================================
 
--- Development/Testing: Allow anonymous access
-DROP POLICY IF EXISTS "Allow anonymous access" ON accounts;
-CREATE POLICY "Allow anonymous access" 
-    ON accounts 
-    FOR ALL 
-    USING (true);
+CREATE TABLE customers (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    friend_link TEXT NOT NULL,
+    friend_code VARCHAR(50),
+    user_id VARCHAR(50), -- Extracted from friend link
+    slots INTEGER DEFAULT 4, -- Number of account slots
+    
+    -- Timestamps
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
 
--- Production Example (commented out):
--- Before deploying to production:
--- 1. Remove the "Allow anonymous access" policy above
--- 2. Uncomment and customize the policies below
--- 3. Test thoroughly before deployment
---
--- DROP POLICY IF EXISTS "Allow anonymous access" ON accounts;
--- 
--- CREATE POLICY "Users can view their own accounts"
---     ON accounts FOR SELECT
---     USING (auth.uid()::text = user_id);
--- 
--- CREATE POLICY "Users can insert their own accounts"
---     ON accounts FOR INSERT
---     WITH CHECK (auth.uid()::text = user_id);
--- 
--- CREATE POLICY "Users can update their own accounts"
---     ON accounts FOR UPDATE
---     USING (auth.uid()::text = user_id);
--- 
--- CREATE POLICY "Users can delete their own accounts"
---     ON accounts FOR DELETE
---     USING (auth.uid()::text = user_id);
+-- ============================================================================
+-- TEAMS TABLE
+-- ============================================================================
 
--- ============================================
--- TRIGGERS
--- ============================================
+CREATE TABLE teams (
+    id BIGSERIAL PRIMARY KEY,
+    event_id BIGINT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    customer_id BIGINT REFERENCES customers(id) ON DELETE SET NULL,
+    
+    -- Account slots (4 per team)
+    slot_1_account_id BIGINT REFERENCES accounts(id) ON DELETE SET NULL,
+    slot_2_account_id BIGINT REFERENCES accounts(id) ON DELETE SET NULL,
+    slot_3_account_id BIGINT REFERENCES accounts(id) ON DELETE SET NULL,
+    slot_4_account_id BIGINT REFERENCES accounts(id) ON DELETE SET NULL,
+    
+    -- Timestamps
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW(),
+    
+    CONSTRAINT unique_team_name_per_event UNIQUE (event_id, name)
+);
 
--- Auto-update updated_at timestamp
+-- ============================================================================
+-- INDEXES
+-- ============================================================================
+
+-- Accounts
+CREATE INDEX idx_accounts_name ON accounts(name);
+CREATE INDEX idx_accounts_user_id ON accounts(user_id);
+CREATE INDEX idx_accounts_status ON accounts(account_status);
+CREATE INDEX idx_accounts_deleted ON accounts(deleted_at) WHERE deleted_at IS NULL;
+CREATE INDEX idx_accounts_suspended ON accounts(is_suspended);
+
+-- Events
+CREATE INDEX idx_events_date_range ON events(start_date, end_date);
+CREATE INDEX idx_events_status ON events(status);
+
+-- Customers
+CREATE INDEX idx_customers_name ON customers(name);
+CREATE INDEX idx_customers_user_id ON customers(user_id);
+
+-- Teams
+CREATE INDEX idx_teams_event ON teams(event_id);
+CREATE INDEX idx_teams_customer ON teams(customer_id);
+CREATE INDEX idx_teams_slots ON teams(slot_1_account_id, slot_2_account_id, slot_3_account_id, slot_4_account_id);
+
+-- ============================================================================
+-- TRIGGERS FOR updated_at
+-- ============================================================================
+
+-- Function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ language 'plpgsql';
 
-DROP TRIGGER IF EXISTS update_accounts_updated_at ON accounts;
-CREATE TRIGGER update_accounts_updated_at
-    BEFORE UPDATE ON accounts
-    FOR EACH ROW
-    EXECUTE FUNCTION update_updated_at_column();
+-- Apply to all tables
+CREATE TRIGGER update_accounts_updated_at BEFORE UPDATE ON accounts
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Auto-calculate suspension_count
-CREATE OR REPLACE FUNCTION update_suspension_count()
-RETURNS TRIGGER AS $$
-BEGIN
-    NEW.suspension_count = 
-        COALESCE(NEW.suspension_0_days, 0) + 
-        COALESCE(NEW.suspension_3_days, 0) + 
-        COALESCE(NEW.suspension_7_days, 0) + 
-        CASE WHEN NEW.suspension_permanent THEN 1 ELSE 0 END;
-    
-    NEW.is_suspended = (NEW.suspension_count > 0);
-    
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
+CREATE TRIGGER update_events_updated_at BEFORE UPDATE ON events
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_accounts_suspension_count ON accounts;
-CREATE TRIGGER update_accounts_suspension_count
-    BEFORE INSERT OR UPDATE ON accounts
-    FOR EACH ROW
-    EXECUTE FUNCTION update_suspension_count();
+CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- ============================================
--- VIEWS FOR COMMON QUERIES
--- ============================================
+CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON teams
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Active accounts (not deleted, not suspended)
+-- ============================================================================
+-- VIEWS
+-- ============================================================================
+
+-- View: Active accounts (not deleted, not suspended)
 CREATE OR REPLACE VIEW active_accounts AS
+SELECT * FROM accounts 
+WHERE deleted_at IS NULL AND NOT is_suspended
+ORDER BY name;
+
+-- View: Teams with account names
+CREATE OR REPLACE VIEW teams_with_details AS
 SELECT 
-    id,
-    name,
-    user_id,
-    short_link,
-    friend_link,
-    friend_code,
-    account_status,
-    last_played,
-    created_at
-FROM accounts
-WHERE deleted_at IS NULL 
-  AND account_status = 'active'
-  AND is_suspended = false
-ORDER BY name ASC;
+    t.id,
+    t.event_id,
+    t.name AS team_name,
+    e.name AS event_name,
+    c.name AS customer_name,
+    a1.name AS slot_1_name,
+    a2.name AS slot_2_name,
+    a3.name AS slot_3_name,
+    a4.name AS slot_4_name,
+    t.created_at,
+    t.updated_at
+FROM teams t
+LEFT JOIN events e ON t.event_id = e.id
+LEFT JOIN customers c ON t.customer_id = c.id
+LEFT JOIN accounts a1 ON t.slot_1_account_id = a1.id
+LEFT JOIN accounts a2 ON t.slot_2_account_id = a2.id
+LEFT JOIN accounts a3 ON t.slot_3_account_id = a3.id
+LEFT JOIN accounts a4 ON t.slot_4_account_id = a4.id;
 
--- Suspended accounts
-CREATE OR REPLACE VIEW suspended_accounts AS
+-- View: Events with team count
+CREATE OR REPLACE VIEW events_with_stats AS
 SELECT 
-    id,
-    name,
-    user_id,
-    account_status,
-    suspension_0_days,
-    suspension_3_days,
-    suspension_7_days,
-    suspension_permanent,
-    suspension_count,
-    last_played
-FROM accounts
-WHERE deleted_at IS NULL 
-  AND is_suspended = true
-ORDER BY suspension_count DESC, name ASC;
+    e.*,
+    COUNT(t.id) AS team_count
+FROM events e
+LEFT JOIN teams t ON e.id = t.event_id
+GROUP BY e.id;
 
--- Recently played accounts
-CREATE OR REPLACE VIEW recently_played_accounts AS
-SELECT 
-    id,
-    name,
-    user_id,
-    account_status,
-    last_played,
-    created_at
-FROM accounts
-WHERE deleted_at IS NULL
-  AND last_played IS NOT NULL
-ORDER BY last_played DESC
-LIMIT 50;
+-- ============================================================================
+-- ROW LEVEL SECURITY (RLS)
+-- ============================================================================
 
--- ============================================
--- UTILITY FUNCTIONS
--- ============================================
+-- Enable RLS on all tables
+ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 
--- Get account statistics
-CREATE OR REPLACE FUNCTION get_account_stats()
-RETURNS TABLE (
-    total_accounts BIGINT,
-    active_accounts BIGINT,
-    suspended_accounts BIGINT,
-    banned_accounts BIGINT,
-    total_suspensions BIGINT
-) AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        COUNT(*) FILTER (WHERE deleted_at IS NULL) as total_accounts,
-        COUNT(*) FILTER (WHERE deleted_at IS NULL AND account_status = 'active') as active_accounts,
-        COUNT(*) FILTER (WHERE deleted_at IS NULL AND is_suspended = true) as suspended_accounts,
-        COUNT(*) FILTER (WHERE deleted_at IS NULL AND account_status = 'banned') as banned_accounts,
-        SUM(suspension_count) FILTER (WHERE deleted_at IS NULL) as total_suspensions
-    FROM accounts;
-END;
-$$ LANGUAGE plpgsql;
+-- Policies: Allow all operations for authenticated users
+-- (In production, you'd want more granular policies)
 
--- ============================================
--- SAMPLE DATA (for testing)
--- ============================================
--- Uncomment to insert sample data
+CREATE POLICY "Allow all for authenticated users" ON accounts
+    FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
 
--- INSERT INTO accounts (name, user_id, account_status, short_link, friend_code) VALUES
--- ('TestAccount1', 'user_001', 'active', 'https://short.link/abc123', 'ABC123'),
--- ('TestAccount2', 'user_002', 'active', 'https://short.link/def456', 'DEF456'),
--- ('SuspendedAccount', 'user_003', 'suspended', 'https://short.link/ghi789', 'GHI789');
--- 
--- UPDATE accounts SET suspension_3_days = 1 WHERE name = 'SuspendedAccount';
+CREATE POLICY "Allow all for authenticated users" ON events
+    FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
 
--- ============================================
--- VERIFICATION QUERIES
--- ============================================
--- Run these to verify the setup
+CREATE POLICY "Allow all for authenticated users" ON customers
+    FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
 
--- Check table structure
--- SELECT column_name, data_type, is_nullable
--- FROM information_schema.columns
--- WHERE table_name = 'accounts'
--- ORDER BY ordinal_position;
+CREATE POLICY "Allow all for authenticated users" ON teams
+    FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
 
--- Check indexes
--- SELECT indexname, indexdef
--- FROM pg_indexes
--- WHERE tablename = 'accounts';
+-- ============================================================================
+-- SAMPLE DATA (Optional - for testing)
+-- ============================================================================
 
--- Check triggers
--- SELECT trigger_name, event_manipulation, event_object_table
--- FROM information_schema.triggers
--- WHERE event_object_table = 'accounts';
+-- Sample accounts
+INSERT INTO accounts (name, user_id, account_status) VALUES
+('Test_Account_1', '123456789', 'active'),
+('Test_Account_2', '987654321', 'active'),
+('Test_Account_3', '555555555', 'suspended');
 
--- Check RLS policies
--- SELECT policyname, permissive, roles, cmd, qual
--- FROM pg_policies
--- WHERE tablename = 'accounts';
+-- Sample event
+INSERT INTO events (name, start_date, end_date, status) VALUES
+('TR-001', '2024-02-01', '2024-02-05', 'planned');
 
--- Get statistics
--- SELECT * FROM get_account_stats();
+-- Sample customer
+INSERT INTO customers (name, friend_link, user_id, slots) VALUES
+('Test Customer', 'https://mply.gg/add-friend/123456789', '123456789', 4);
 
--- ============================================
--- SETUP COMPLETE
--- ============================================
--- Your database is now ready for the MonopolyGo Android App!
--- 
--- Next steps:
--- 1. Copy your Supabase URL and Anon Key
--- 2. Update gradle.properties with your credentials
--- 3. Build and run the Android app
--- 4. Test account creation and sync
+-- Sample team
+INSERT INTO teams (event_id, name, customer_id, slot_1_account_id) VALUES
+(1, 'Team Alpha', 1, 1);
+
+-- ============================================================================
+-- SCHEMA VERSION
+-- ============================================================================
+
+CREATE TABLE IF NOT EXISTS schema_version (
+    version INTEGER PRIMARY KEY,
+    applied_at TIMESTAMP DEFAULT NOW(),
+    description TEXT
+);
+
+INSERT INTO schema_version (version, description) VALUES
+(1, 'Initial schema with accounts, events, customers, and teams');
+
+-- ============================================================================
+-- COMPLETION
+-- ============================================================================
+
+-- Schema erfolgreich erstellt!
+-- Nächste Schritte:
+-- 1. Kopiere Project URL aus Supabase Settings → API
+-- 2. Kopiere anon/public key aus Supabase Settings → API
+-- 3. Füge beides in gradle.properties ein
+-- 4. Gradle Sync & Build APK
