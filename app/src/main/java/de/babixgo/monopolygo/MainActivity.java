@@ -154,11 +154,17 @@ public class MainActivity extends AppCompatActivity {
     
     private void setupButtons() {
         Button btnAccountManagement = findViewById(R.id.btn_account_management);
+        Button btnAccountList = findViewById(R.id.btn_account_list);
         Button btnPartnerEvent = findViewById(R.id.btn_partner_event);
         Button btnFriendship = findViewById(R.id.btn_friendship);
         
         btnAccountManagement.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, AccountManagementActivity.class);
+            startActivity(intent);
+        });
+        
+        btnAccountList.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, de.babixgo.monopolygo.activities.AccountListActivity.class);
             startActivity(intent);
         });
         
