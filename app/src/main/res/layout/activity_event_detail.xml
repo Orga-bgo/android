@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/background_light">
+
+    <!-- Header Card -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:cardBackgroundColor="@color/header_dark"
+        app:cardCornerRadius="0dp"
+        app:cardElevation="4dp">
+        
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="20dp">
+            
+            <!-- Event Title -->
+            <TextView
+                android:id="@+id/tv_event_title"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Event: TR-001"
+                android:textSize="22sp"
+                android:textColor="@color/text_white"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp" />
+            
+            <!-- Action Buttons -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                
+                <Button
+                    android:id="@+id/btn_add_team"
+                    style="@style/BabixButton.Blue"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    android:text="+ Team hinzufügen" />
+                
+                <Button
+                    android:id="@+id/btn_add_customer"
+                    style="@style/BabixButton.Green"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:text="+ Kunde hinzufügen" />
+            </LinearLayout>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+    
+    <!-- Teams Table -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="vertical"
+        android:padding="16dp">
+        
+        <!-- Table Header -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingVertical="12dp"
+            android:background="@color/status_box_bg">
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1.5"
+                android:text="Name"
+                android:textSize="12sp"
+                android:textColor="@color/text_gray"
+                android:textStyle="bold"
+                android:paddingStart="12dp" />
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1.5"
+                android:text="Kunde"
+                android:textSize="12sp"
+                android:textColor="@color/text_gray"
+                android:textStyle="bold" />
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Acc 1"
+                android:textSize="12sp"
+                android:textColor="@color/text_gray"
+                android:textStyle="bold" />
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Acc 2"
+                android:textSize="12sp"
+                android:textColor="@color/text_gray"
+                android:textStyle="bold" />
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Acc 3"
+                android:textSize="12sp"
+                android:textColor="@color/text_gray"
+                android:textStyle="bold" />
+        </LinearLayout>
+        
+        <!-- Teams RecyclerView -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rv_teams"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1" />
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp">
+    
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Name"
+        android:layout_marginBottom="12dp"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_customer_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:singleLine="true" />
+    </com.google.android.material.textfield.TextInputLayout>
+    
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Freundschaftslink"
+        android:layout_marginBottom="12dp"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_friend_link"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:singleLine="true" />
+    </com.google.android.material.textfield.TextInputLayout>
+    
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Freundschaftscode (optional)"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/et_friend_code"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:singleLine="true" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+</LinearLayout>
