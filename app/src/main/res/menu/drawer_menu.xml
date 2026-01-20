@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_account_list"
+            android:icon="@android:drawable/ic_menu_view"
+            android:title="Accountliste" />
+        <item
+            android:id="@+id/nav_tycoon_racers"
+            android:icon="@android:drawable/ic_menu_compass"
+            android:title="Tycoon Racers" />
+        <item
+            android:id="@+id/nav_partner_event"
+            android:icon="@android:drawable/ic_menu_my_calendar"
+            android:title="Partnerevent" />
+        <item
+            android:id="@+id/nav_friendship"
+            android:icon="@android:drawable/ic_menu_share"
+            android:title="Freundschaftsbalken" />
+        <item
+            android:id="@+id/nav_customers"
+            android:icon="@android:drawable/ic_menu_agenda"
+            android:title="Kunden" />
+    </group>
+    <item android:title="Weitere Optionen">
+        <menu>
+            <item
+                android:id="@+id/nav_settings"
+                android:icon="@android:drawable/ic_menu_preferences"
+                android:title="Einstellungen" />
+        </menu>
+    </item>
+</menu>

@@ -8,20 +8,40 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
+import android.view.MenuItem;
 import android.view.View;
-import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.Toast;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.GravityCompat;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.navigation.NavigationView;
+import de.babixgo.monopolygo.adapters.AccountListAdapter;
+import de.babixgo.monopolygo.database.AccountRepository;
+import de.babixgo.monopolygo.models.Account;
+import de.babixgo.monopolygo.activities.AccountDetailActivity;
 
 /**
- * Main activity that serves as the entry point and module selector.
+ * Main activity that serves as the entry point with account list and navigation drawer.
  */
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements NavigationView.OnNavigationItemSelectedListener {
     private static final int PERMISSION_REQUEST_CODE = 1001;
     private static final int MANAGE_STORAGE_REQUEST_CODE = 1002;
+    
+    private DrawerLayout drawerLayout;
+    private NavigationView navigationView;
+    private RecyclerView rvAccounts;
+    private AccountListAdapter adapter;
+    private AccountRepository repository;
+    private FloatingActionButton fabNewAccount;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -31,14 +51,26 @@ public class MainActivity extends AppCompatActivity {
         // Initialize directories
         AccountManager.initializeDirectories();
         
+        // Initialize repository
+        repository = new AccountRepository();
+        
         // Check and request permissions
         checkAndRequestPermissions();
         
         // Check root access
         checkRootAccess();
         
-        // Setup buttons
-        setupButtons();
+        // Setup navigation drawer
+        setupNavigationDrawer();
+        
+        // Setup account list
+        setupAccountList();
+        
+        // Setup FAB
+        setupFAB();
+        
+        // Load accounts
+        loadAccounts();
     }
     
     private void checkAndRequestPermissions() {
@@ -149,34 +181,133 @@ public class MainActivity extends AppCompatActivity {
             .show();
     }
     
-    // ZIP tool check removed - we use Java-based ZIP now
-    // No external 'zip' command needed anymore
+    private void setupNavigationDrawer() {
+        drawerLayout = findViewById(R.id.drawer_layout);
+        navigationView = findViewById(R.id.nav_view);
+        ImageButton btnMenu = findViewById(R.id.btn_menu);
+        
+        navigationView.setNavigationItemSelectedListener(this);
+        
+        // Set the first item as checked
+        navigationView.setCheckedItem(R.id.nav_account_list);
+        
+        btnMenu.setOnClickListener(v -> drawerLayout.openDrawer(GravityCompat.START));
+    }
     
-    private void setupButtons() {
-        Button btnAccountManagement = findViewById(R.id.btn_account_management);
-        Button btnAccountList = findViewById(R.id.btn_account_list);
-        Button btnPartnerEvent = findViewById(R.id.btn_partner_event);
-        Button btnFriendship = findViewById(R.id.btn_friendship);
+    private void setupAccountList() {
+        rvAccounts = findViewById(R.id.rv_accounts);
+        adapter = new AccountListAdapter(account -> showAccountOptionsDialog(account));
+        rvAccounts.setLayoutManager(new LinearLayoutManager(this));
+        rvAccounts.setAdapter(adapter);
+    }
+    
+    private void setupFAB() {
+        fabNewAccount = findViewById(R.id.fab_new_account);
+        fabNewAccount.setOnClickListener(v -> showBackupDialog());
+    }
+    
+    private void loadAccounts() {
+        repository.getAllAccounts()
+            .thenAccept(accounts -> runOnUiThread(() -> {
+                adapter.setAccounts(accounts);
+            }))
+            .exceptionally(throwable -> {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, 
+                        "Fehler beim Laden der Accounts", 
+                        Toast.LENGTH_LONG).show();
+                });
+                return null;
+            });
+    }
+    
+    private void showAccountOptionsDialog(Account account) {
+        String[] options = {
+            "Wiederherstellen",
+            "Mehr anzeigen",
+            "Abbrechen"
+        };
         
-        btnAccountManagement.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, AccountManagementActivity.class);
-            startActivity(intent);
-        });
+        new AlertDialog.Builder(this)
+            .setTitle(account.getName())
+            .setItems(options, (dialog, which) -> {
+                switch (which) {
+                    case 0: // Wiederherstellen
+                        restoreAccount(account);
+                        break;
+                    case 1: // Mehr anzeigen
+                        openAccountDetail(account);
+                        break;
+                    case 2: // Abbrechen
+                        dialog.dismiss();
+                        break;
+                }
+            })
+            .show();
+    }
+    
+    private void restoreAccount(Account account) {
+        // Navigate to AccountManagementActivity and trigger restore
+        Intent intent = new Intent(this, AccountManagementActivity.class);
+        intent.putExtra("action", "restore");
+        intent.putExtra("account_name", account.getName());
+        startActivity(intent);
+    }
+    
+    private void openAccountDetail(Account account) {
+        Intent intent = new Intent(this, AccountDetailActivity.class);
+        intent.putExtra("account_id", account.getId());
+        startActivity(intent);
+    }
+    
+    private void showBackupDialog() {
+        // Navigate to AccountManagementActivity for backup
+        Intent intent = new Intent(this, AccountManagementActivity.class);
+        startActivity(intent);
+    }
+    
+    @Override
+    public boolean onNavigationItemSelected(@NonNull MenuItem item) {
+        int id = item.getItemId();
         
-        btnAccountList.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, de.babixgo.monopolygo.activities.AccountListActivity.class);
+        if (id == R.id.nav_account_list) {
+            // Already on account list - just close drawer
+            drawerLayout.closeDrawer(GravityCompat.START);
+            return true;
+        } else if (id == R.id.nav_tycoon_racers) {
+            Intent intent = new Intent(this, de.babixgo.monopolygo.activities.TycoonRacersActivity.class);
             startActivity(intent);
-        });
+        } else if (id == R.id.nav_partner_event) {
+            Intent intent = new Intent(this, PartnerEventActivity.class);
+            startActivity(intent);
+        } else if (id == R.id.nav_friendship) {
+            Intent intent = new Intent(this, FriendshipActivity.class);
+            startActivity(intent);
+        } else if (id == R.id.nav_customers) {
+            Intent intent = new Intent(this, de.babixgo.monopolygo.activities.CustomersActivity.class);
+            startActivity(intent);
+        } else if (id == R.id.nav_settings) {
+            Intent intent = new Intent(this, de.babixgo.monopolygo.activities.SettingsActivity.class);
+            startActivity(intent);
+        }
         
-        btnPartnerEvent.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, PartnerEventActivity.class);
-            startActivity(intent);
-        });
-        
-        btnFriendship.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, FriendshipActivity.class);
-            startActivity(intent);
-        });
+        drawerLayout.closeDrawer(GravityCompat.START);
+        return true;
+    }
+    
+    @Override
+    public void onBackPressed() {
+        if (drawerLayout.isDrawerOpen(GravityCompat.START)) {
+            drawerLayout.closeDrawer(GravityCompat.START);
+        } else {
+            super.onBackPressed();
+        }
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        loadAccounts(); // Refresh on return
     }
     
     @Override
