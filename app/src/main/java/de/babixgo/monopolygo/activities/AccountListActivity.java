@@ -104,7 +104,7 @@ public class AccountListActivity extends AppCompatActivity {
     
     private void restoreAccount(Account account) {
         // TODO: Implement restore logic
-        Toast.makeText(this, "Wiederherstelle " + account.getName(), Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Wiederherstellung von " + account.getName(), Toast.LENGTH_SHORT).show();
         
         // Navigate to AccountManagementActivity and trigger restore
         Intent intent = new Intent(this, de.babixgo.monopolygo.AccountManagementActivity.class);
