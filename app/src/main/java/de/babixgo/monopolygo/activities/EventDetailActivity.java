@@ -409,7 +409,6 @@ public class EventDetailActivity extends AppCompatActivity {
             });
     }
     
-
     @Override
     protected void onResume() {
         super.onResume();
