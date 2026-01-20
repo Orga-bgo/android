@@ -116,17 +116,17 @@ public class AccountDetailActivity extends AppCompatActivity {
         Toast.makeText(this, "Wiederherstelle " + account.getName() + "...", Toast.LENGTH_SHORT).show();
         
         new Thread(() -> {
-            String sourceFile = AccountManager.getAccountsEigenePath() + account.getName() + 
-                               "/WithBuddies.Services.User.0Production.dat";
-            
-            boolean success = AccountManager.restoreAccount(sourceFile);
+            boolean success = AccountManager.restoreAccountExtended(account.getName());
             
             runOnUiThread(() -> {
                 if (success) {
                     Toast.makeText(this, "Account wiederhergestellt", Toast.LENGTH_SHORT).show();
                     
-                    // Update last_played in database
-                    account.setLastPlayed(new java.util.Date().toString());
+                    // Update last_played in database with proper ISO format
+                    java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat(
+                        "yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault());
+                    String currentTimestamp = sdf.format(new java.util.Date());
+                    account.setLastPlayed(currentTimestamp);
                     repository.updateLastPlayed(account.getId());
                     
                     // Ask to start app
