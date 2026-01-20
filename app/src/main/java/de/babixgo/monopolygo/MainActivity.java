@@ -275,7 +275,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             drawerLayout.closeDrawer(GravityCompat.START);
             return true;
         } else if (id == R.id.nav_tycoon_racers) {
-            Toast.makeText(this, "Tycoon Racers (In Entwicklung)", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(this, de.babixgo.monopolygo.activities.TycoonRacersActivity.class);
+            startActivity(intent);
         } else if (id == R.id.nav_partner_event) {
             Intent intent = new Intent(this, PartnerEventActivity.class);
             startActivity(intent);
@@ -283,9 +284,11 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             Intent intent = new Intent(this, FriendshipActivity.class);
             startActivity(intent);
         } else if (id == R.id.nav_customers) {
-            Toast.makeText(this, "Kunden (In Entwicklung)", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(this, de.babixgo.monopolygo.activities.CustomersActivity.class);
+            startActivity(intent);
         } else if (id == R.id.nav_settings) {
-            Toast.makeText(this, "Einstellungen (In Entwicklung)", Toast.LENGTH_SHORT).show();
+            Intent intent = new Intent(this, de.babixgo.monopolygo.activities.SettingsActivity.class);
+            startActivity(intent);
         }
         
         drawerLayout.closeDrawer(GravityCompat.START);

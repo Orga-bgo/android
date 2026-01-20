@@ -69,6 +69,18 @@
         <activity
             android:name=".activities.EventDetailActivity"
             android:exported="false" />
+        
+        <activity
+            android:name=".activities.TycoonRacersActivity"
+            android:exported="false" />
+        
+        <activity
+            android:name=".activities.CustomersActivity"
+            android:exported="false" />
+        
+        <activity
+            android:name=".activities.SettingsActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
