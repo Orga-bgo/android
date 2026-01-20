@@ -9,6 +9,8 @@ import android.widget.Toast;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 import de.babixgo.monopolygo.AccountManager;
 import de.babixgo.monopolygo.R;
 import de.babixgo.monopolygo.database.AccountRepository;
@@ -147,8 +149,90 @@ public class AccountDetailActivity extends AppCompatActivity {
     }
     
     private void toggleEditMode() {
-        // TODO: Open edit dialog
-        Toast.makeText(this, "Edit-Funktion (siehe Teil 3)", Toast.LENGTH_SHORT).show();
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_edit_account, null);
+        
+        // Initialize views
+        TextInputEditText etName = dialogView.findViewById(R.id.et_name);
+        TextInputEditText etUserId = dialogView.findViewById(R.id.et_user_id);
+        TextInputEditText etFriendCode = dialogView.findViewById(R.id.et_friend_code);
+        TextInputEditText etSuspension0 = dialogView.findViewById(R.id.et_suspension_0);
+        TextInputEditText etSuspension3 = dialogView.findViewById(R.id.et_suspension_3);
+        TextInputEditText etSuspension7 = dialogView.findViewById(R.id.et_suspension_7);
+        SwitchMaterial switchPermanent = dialogView.findViewById(R.id.switch_suspension_permanent);
+        SwitchMaterial switchError = dialogView.findViewById(R.id.switch_has_error);
+        TextInputEditText etNote = dialogView.findViewById(R.id.et_note);
+        Button btnCancel = dialogView.findViewById(R.id.btn_cancel);
+        Button btnSave = dialogView.findViewById(R.id.btn_save);
+        
+        // Populate with current values
+        etName.setText(account.getName());
+        etUserId.setText(account.getUserId());
+        etFriendCode.setText(account.getFriendCode());
+        etSuspension0.setText(String.valueOf(account.getSuspension0Days()));
+        etSuspension3.setText(String.valueOf(account.getSuspension3Days()));
+        etSuspension7.setText(String.valueOf(account.getSuspension7Days()));
+        switchPermanent.setChecked(account.isSuspensionPermanent());
+        switchError.setChecked(account.isHasError());
+        etNote.setText(account.getNote());
+        
+        AlertDialog dialog = new AlertDialog.Builder(this)
+            .setTitle("Account bearbeiten")
+            .setView(dialogView)
+            .setCancelable(true)
+            .create();
+        
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+        
+        btnSave.setOnClickListener(v -> {
+            // Update account object
+            account.setName(etName.getText().toString().trim());
+            account.setUserId(etUserId.getText().toString().trim());
+            account.setFriendCode(etFriendCode.getText().toString().trim());
+            
+            try {
+                account.setSuspension0Days(Integer.parseInt(etSuspension0.getText().toString()));
+            } catch (Exception e) {
+                account.setSuspension0Days(0);
+            }
+            
+            try {
+                account.setSuspension3Days(Integer.parseInt(etSuspension3.getText().toString()));
+            } catch (Exception e) {
+                account.setSuspension3Days(0);
+            }
+            
+            try {
+                account.setSuspension7Days(Integer.parseInt(etSuspension7.getText().toString()));
+            } catch (Exception e) {
+                account.setSuspension7Days(0);
+            }
+            
+            account.setSuspensionPermanent(switchPermanent.isChecked());
+            account.setHasError(switchError.isChecked());
+            account.setNote(etNote.getText().toString().trim());
+            
+            // Save to database
+            saveAccount();
+            dialog.dismiss();
+        });
+        
+        dialog.show();
+    }
+    
+    private void saveAccount() {
+        repository.updateAccount(account)
+            .thenRun(() -> runOnUiThread(() -> {
+                Toast.makeText(this, "Änderungen gespeichert", Toast.LENGTH_SHORT).show();
+                displayAccount(); // Refresh UI
+            }))
+            .exceptionally(throwable -> {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, 
+                        "Fehler beim Speichern: " + throwable.getMessage(), 
+                        Toast.LENGTH_LONG).show();
+                });
+                return null;
+            });
     }
     
     private void showDeleteConfirmation() {

@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+    
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+        
+        <!-- Name -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Name"
+            android:layout_marginBottom="12dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+            
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_name"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true" />
+        </com.google.android.material.textfield.TextInputLayout>
+        
+        <!-- User ID -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="MonopolyGo User ID"
+            android:layout_marginBottom="12dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+            
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_user_id"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true"
+                android:inputType="number" />
+        </com.google.android.material.textfield.TextInputLayout>
+        
+        <!-- Friend Code -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Freundschaftscode"
+            android:layout_marginBottom="16dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+            
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_friend_code"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:singleLine="true" />
+        </com.google.android.material.textfield.TextInputLayout>
+        
+        <!-- Suspension Section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Suspension-Status"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_dark"
+            android:layout_marginBottom="12dp" />
+        
+        <!-- 0-Tage Suspensions -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="0-Tage Suspensions"
+            android:layout_marginBottom="8dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+            
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_suspension_0"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:text="0" />
+        </com.google.android.material.textfield.TextInputLayout>
+        
+        <!-- 3-Tage Suspensions -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="3-Tage Suspensions"
+            android:layout_marginBottom="8dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+            
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_suspension_3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:text="0" />
+        </com.google.android.material.textfield.TextInputLayout>
+        
+        <!-- 7-Tage Suspensions -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="7-Tage Suspensions"
+            android:layout_marginBottom="8dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+            
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_suspension_7"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="number"
+                android:text="0" />
+        </com.google.android.material.textfield.TextInputLayout>
+        
+        <!-- Permanent Suspension -->
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/switch_suspension_permanent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Permanent gesperrt"
+            android:layout_marginBottom="16dp" />
+        
+        <!-- Error Section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Error-Status"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_dark"
+            android:layout_marginBottom="12dp" />
+        
+        <com.google.android.material.switchmaterial.SwitchMaterial
+            android:id="@+id/switch_has_error"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Fehler vorhanden"
+            android:layout_marginBottom="16dp" />
+        
+        <!-- Note -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Notiz (optional)"
+            android:layout_marginBottom="16dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+            
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/et_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minLines="3"
+                android:gravity="top|start"
+                android:inputType="textMultiLine" />
+        </com.google.android.material.textfield.TextInputLayout>
+        
+        <!-- Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            
+            <Button
+                android:id="@+id/btn_cancel"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Abbrechen"
+                android:textColor="@color/text_gray" />
+            
+            <Button
+                android:id="@+id/btn_save"
+                style="@style/BabixButton.Blue"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Speichern" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
