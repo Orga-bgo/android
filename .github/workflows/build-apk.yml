@@ -37,9 +37,15 @@ jobs:
           cd ../..
       
       - name: Build Debug APK
+        env:
+          SUPABASE_URL: ${{ secrets.SB_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SB_KEY }}
         run: ./gradlew assembleDebug --stacktrace
       
       - name: Build Release APK (unsigned)
+        env:
+          SUPABASE_URL: ${{ secrets.SB_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SB_KEY }}
         run: ./gradlew assembleRelease --stacktrace
         continue-on-error: true
       
