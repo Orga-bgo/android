@@ -214,7 +214,7 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             .exceptionally(throwable -> {
                 runOnUiThread(() -> {
                     Toast.makeText(this, 
-                        "Fehler beim Laden: " + throwable.getMessage(), 
+                        "Fehler beim Laden der Accounts", 
                         Toast.LENGTH_LONG).show();
                 });
                 return null;
