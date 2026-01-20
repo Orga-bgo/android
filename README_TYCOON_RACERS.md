@@ -18,13 +18,6 @@ Native Android application for managing MonopolyGo accounts with Tycoon Racers e
 - 🔗 Account-to-team assignments
 - 📋 Event overview and statistics
 
-### Automated Execution
-- 🤖 Sequential team processing
-- 🔄 Automatic account switching
-- 🎯 Friend link opening automation
-- 📈 Real-time progress tracking
-- ⚠️ Error handling and recovery
-
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -112,7 +105,7 @@ Multi-Device Sync
 - `AccountRepository` - Account CRUD
 
 **Utilities:**
-- `EventExecutor` - Automated event processing
+- ~~`EventExecutor` - Automated event processing~~ (REMOVED)
 - `AccountManager` - Root operations
 - `SupabaseManager` - API integration
 
