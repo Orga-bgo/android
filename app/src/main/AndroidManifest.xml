@@ -53,6 +53,14 @@
         <activity
             android:name=".FriendshipActivity"
             android:exported="false" />
+        
+        <activity
+            android:name=".activities.AccountListActivity"
+            android:exported="false" />
+        
+        <activity
+            android:name=".activities.AccountDetailActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
