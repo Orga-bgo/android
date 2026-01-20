@@ -151,7 +151,7 @@ BEGIN
     NEW.updated_at = NOW();
     RETURN NEW;
 END;
-$$ language 'plpgsql';
+$$ LANGUAGE plpgsql;
 
 -- Apply to all tables
 CREATE TRIGGER update_accounts_updated_at BEFORE UPDATE ON accounts
@@ -217,9 +217,15 @@ ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 
--- Policies: Allow all operations for authenticated users
--- (In production, you'd want more granular policies)
+-- ⚠️ WARNING: Development/Testing Policies
+-- These policies allow anonymous access for development and testing.
+-- For PRODUCTION use, you should:
+-- 1. Remove 'auth.role() = anon' from all policies
+-- 2. Enable Supabase authentication in your app
+-- 3. Implement user-specific policies based on user_id
+-- 4. Consider separate policies for SELECT, INSERT, UPDATE, DELETE
 
+-- Policies: Allow all operations for authenticated and anonymous users
 CREATE POLICY "Allow all for authenticated users" ON accounts
     FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
 
@@ -236,6 +242,10 @@ CREATE POLICY "Allow all for authenticated users" ON teams
 -- SAMPLE DATA (Optional - for testing)
 -- ============================================================================
 
+-- ⚠️ IMPORTANT: Comment out this section for production deployments!
+-- This sample data is for development and testing only.
+
+/*
 -- Sample accounts
 INSERT INTO accounts (name, user_id, account_status) VALUES
 ('Test_Account_1', '123456789', 'active'),
@@ -253,6 +263,7 @@ INSERT INTO customers (name, friend_link, user_id, slots) VALUES
 -- Sample team
 INSERT INTO teams (event_id, name, customer_id, slot_1_account_id) VALUES
 (1, 'Team Alpha', 1, 1);
+*/
 
 -- ============================================================================
 -- SCHEMA VERSION
