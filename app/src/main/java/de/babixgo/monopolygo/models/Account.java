@@ -54,6 +54,12 @@ public class Account {
     @SerializedName("device_id")
     private String deviceId;
     
+    @SerializedName("device_token")
+    private String deviceToken;
+    
+    @SerializedName("app_set_id")
+    private String appSetId;
+    
     // Flags
     @SerializedName("is_suspended")
     private transient Boolean isSuspended; // GENERATED column - not serialized
@@ -149,6 +155,12 @@ public class Account {
     
     public String getDeviceId() { return deviceId; }
     public void setDeviceId(String deviceId) { this.deviceId = deviceId; }
+    
+    public String getDeviceToken() { return deviceToken; }
+    public void setDeviceToken(String deviceToken) { this.deviceToken = deviceToken; }
+    
+    public String getAppSetId() { return appSetId; }
+    public void setAppSetId(String appSetId) { this.appSetId = appSetId; }
     
     public boolean isSuspended() { return isSuspended != null ? isSuspended : false; }
     public void setSuspended(boolean suspended) { isSuspended = suspended; }
