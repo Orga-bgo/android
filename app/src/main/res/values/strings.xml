@@ -20,4 +20,18 @@
     <string name="restore_input_path">Pfad für ZIP-Restore (Eingabe)</string>
     <string name="name_prefix">Namens-Präfix</string>
     <string name="settings_saved">Einstellungen gespeichert</string>
+    
+    <!-- Navigation -->
+    <string name="navigation_drawer_open">Navigation öffnen</string>
+    <string name="navigation_drawer_close">Navigation schließen</string>
+
+    <!-- Menu Items -->
+    <string name="menu_accounts">Accountliste</string>
+    <string name="menu_tycoon_racers">Tycoon Racers</string>
+    <string name="menu_customers">Kunden</string>
+
+    <!-- FAB Descriptions -->
+    <string name="fab_backup_account">Account sichern</string>
+    <string name="fab_create_event">Neues Event</string>
+    <string name="fab_create_customer">Neuen Kunden anlegen</string>
 </resources>
