@@ -6,7 +6,26 @@
 --
 -- USAGE: Copy and paste this entire script into Supabase SQL Editor and run it
 -- Each SELECT statement will produce a result showing the verification status
+--
+-- ⚠️ IF YOU SEE ERRORS: Run supabase_migration_safe.sql first to create tables
 -- ============================================================================
+
+-- ============================================================================
+-- 0. PRE-CHECK - DATABASE STATUS
+-- ============================================================================
+
+-- Quick check to see if schema is initialized
+SELECT
+    '0. DATABASE STATUS' as "Check",
+    CASE
+        WHEN COUNT(*) >= 5 THEN '✓ Schema appears to be initialized'
+        WHEN COUNT(*) > 0 THEN '⚠ Partial schema - some tables missing'
+        ELSE '✗ Empty database - Run supabase_migration_safe.sql'
+    END as "Status",
+    COUNT(*)::text || ' / 6 required tables found' as "Details"
+FROM information_schema.tables
+WHERE table_schema = 'public'
+AND table_name IN ('accounts', 'events', 'customers', 'customer_accounts', 'teams', 'schema_version');
 
 -- ============================================================================
 -- 1. CHECK EXTENSIONS
@@ -227,32 +246,46 @@ ORDER BY tablename, policyname;
 -- ============================================================================
 
 -- Expected: Versions 1-5 should be present
+-- Note: This query only works if schema_version table exists
 SELECT
     '11. SCHEMA VERSIONS' as "Check",
-    version as "Version",
-    description as "Description",
-    applied_at as "Applied At"
-FROM schema_version
-ORDER BY version;
+    CASE
+        WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'schema_version') THEN
+            (SELECT string_agg(version::text, ', ' ORDER BY version) FROM schema_version)
+        ELSE 'Table does not exist - Run supabase_migration_safe.sql'
+    END as "Versions Found",
+    CASE
+        WHEN EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'schema_version') THEN
+            (SELECT MAX(version)::text FROM schema_version)
+        ELSE 'N/A'
+    END as "Latest Version";
 
 -- ============================================================================
--- 12. CHECK TABLE ROW COUNTS
+-- 12. CHECK TABLE EXISTENCE
 -- ============================================================================
 
--- Shows how many records are in each table
+-- Shows which tables exist in the database
 SELECT
-    '12. TABLE STATISTICS' as "Check",
-    'accounts' as "Table",
-    COUNT(*) as "Row Count"
-FROM accounts
-UNION ALL
-SELECT '12. TABLE STATISTICS', 'events', COUNT(*) FROM events
-UNION ALL
-SELECT '12. TABLE STATISTICS', 'customers', COUNT(*) FROM customers
-UNION ALL
-SELECT '12. TABLE STATISTICS', 'customer_accounts', COUNT(*) FROM customer_accounts
-UNION ALL
-SELECT '12. TABLE STATISTICS', 'teams', COUNT(*) FROM teams;
+    '12. TABLE EXISTENCE' as "Check",
+    expected.table_name as "Table",
+    CASE
+        WHEN EXISTS (
+            SELECT 1 FROM information_schema.tables t
+            WHERE t.table_schema = 'public'
+            AND t.table_name = expected.table_name
+        ) THEN '✓ Exists'
+        ELSE '✗ Missing - Run supabase_migration_safe.sql'
+    END as "Status"
+FROM (
+    VALUES
+        ('accounts'),
+        ('events'),
+        ('customers'),
+        ('customer_accounts'),
+        ('teams'),
+        ('schema_version')
+) AS expected(table_name)
+ORDER BY expected.table_name;
 
 -- ============================================================================
 -- 13. SUMMARY CHECK
