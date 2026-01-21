@@ -25,9 +25,12 @@ public class AccountRepository {
     public CompletableFuture<List<Account>> getAllAccounts() {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                if (!supabase.isConfigured()) {
+                    throw new RuntimeException("Supabase ist nicht konfiguriert. Bitte füge deine Supabase-Zugangsdaten in gradle.properties hinzu.");
+                }
                 return supabase.select("accounts", Account.class, "deleted_at=is.null&order=name.asc");
             } catch (IOException e) {
-                throw new RuntimeException("Failed to load accounts", e);
+                throw new RuntimeException("Fehler beim Laden der Accounts: " + e.getMessage(), e);
             }
         });
     }
@@ -65,6 +68,9 @@ public class AccountRepository {
     public CompletableFuture<Account> createAccount(Account account) {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                if (!supabase.isConfigured()) {
+                    throw new RuntimeException("Supabase ist nicht konfiguriert. Account wurde lokal gesichert, aber nicht in der Datenbank gespeichert.");
+                }
                 // Set timestamps
                 String now = getCurrentTimestamp();
                 account.setCreatedAt(now);
@@ -72,7 +78,7 @@ public class AccountRepository {
                 
                 return supabase.insert("accounts", account, Account.class);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to create account", e);
+                throw new RuntimeException("Fehler beim Erstellen des Accounts: " + e.getMessage(), e);
             }
         });
     }

@@ -25,9 +25,12 @@ public class CustomerRepository {
     public CompletableFuture<List<Customer>> getAllCustomers() {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                if (!supabase.isConfigured()) {
+                    throw new RuntimeException("Supabase ist nicht konfiguriert. Bitte füge deine Supabase-Zugangsdaten in gradle.properties hinzu.");
+                }
                 return supabase.select("customers", Customer.class, "order=name.asc");
             } catch (IOException e) {
-                throw new RuntimeException("Failed to load customers", e);
+                throw new RuntimeException("Fehler beim Laden der Kunden: " + e.getMessage(), e);
             }
         });
     }
