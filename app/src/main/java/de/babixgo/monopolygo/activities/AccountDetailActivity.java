@@ -202,12 +202,16 @@ public class AccountDetailActivity extends AppCompatActivity {
             
             // Map display text back to status value
             String displayText = actSuspensionStatus.getText().toString();
-            String statusValue = "0";
+            String statusValue = "0"; // Default
             switch (displayText) {
                 case "Keine": statusValue = "0"; break;
                 case "3 Tage": statusValue = "3"; break;
                 case "7 Tage": statusValue = "7"; break;
                 case "Permanent": statusValue = "perm"; break;
+                default:
+                    // If unrecognized value, keep current status or default to "0"
+                    statusValue = account.getSuspensionStatus();
+                    break;
             }
             account.setSuspensionStatus(statusValue);
             
