@@ -16,16 +16,16 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import de.babixgo.monopolygo.AccountManager;
-import de.babixgo.monopolygo.DataExtractor;
 import de.babixgo.monopolygo.R;
+import de.babixgo.monopolygo.RootManager;
 import de.babixgo.monopolygo.activities.AccountDetailActivity;
 import de.babixgo.monopolygo.adapters.AccountListAdapter;
 import de.babixgo.monopolygo.database.AccountRepository;
 import de.babixgo.monopolygo.models.Account;
-import de.babixgo.monopolygo.utils.DeviceIdExtractor;
-import de.babixgo.monopolygo.ShortLinkManager;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class AccountListFragment extends Fragment {
     private static final String TAG = "AccountListFragment";
@@ -37,47 +37,40 @@ public class AccountListFragment extends Fragment {
 
     @Nullable
     @Override
-    public View onCreateView(@NonNull LayoutInflater inflater, 
-                            @Nullable ViewGroup container, 
-                            @Nullable Bundle savedInstanceState) {
+    public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, 
+                             @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_account_list, container, false);
 
         // Initialize Repository
         repository = new AccountRepository();
-        
-        // Initialize Views
-        rvAccounts = view.findViewById(R.id.rv_accounts);
-        fabBackup = view.findViewById(R.id.fab_backup);
-        
+
         // Setup RecyclerView
-        setupRecyclerView();
+        rvAccounts = view.findViewById(R.id.rv_accounts);
+        rvAccounts.setLayoutManager(new LinearLayoutManager(requireContext()));
         
+        adapter = new AccountListAdapter(this::showAccountOptions);
+        rvAccounts.setAdapter(adapter);
+
         // Setup FAB
+        fabBackup = view.findViewById(R.id.fab_backup);
         fabBackup.setOnClickListener(v -> showBackupDialog());
-        
-        // Load accounts
+
+        // Load Accounts
         loadAccounts();
-        
+
         return view;
     }
-    
-    private void setupRecyclerView() {
-        adapter = new AccountListAdapter(account -> showAccountOptionsDialog(account));
-        rvAccounts.setLayoutManager(new LinearLayoutManager(requireContext()));
-        rvAccounts.setAdapter(adapter);
-    }
+
+    // ==================== LOAD ACCOUNTS ====================
     
     private void loadAccounts() {
-        // Check if Supabase is configured first
-        if (!repository.isSupabaseConfigured()) {
-            showSupabaseNotConfiguredDialog();
-            return;
-        }
+        Log.d(TAG, "Loading accounts from Supabase");
         
         repository.getAllAccounts()
             .thenAccept(accounts -> {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
+                        Log.d(TAG, "Loaded " + accounts.size() + " accounts");
                         adapter.setAccounts(accounts);
                     });
                 }
@@ -86,103 +79,16 @@ public class AccountListFragment extends Fragment {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
                         Log.e(TAG, "Failed to load accounts", throwable);
-                        
-                        // Check if it's a configuration error
-                        String errorMsg = throwable.getMessage();
-                        if (errorMsg != null && errorMsg.contains("nicht konfiguriert")) {
-                            showSupabaseNotConfiguredDialog();
-                        } else {
-                            Toast.makeText(requireContext(), 
-                                "Fehler beim Laden: " + errorMsg, 
-                                Toast.LENGTH_LONG).show();
-                        }
+                        Toast.makeText(requireContext(), 
+                            "Fehler beim Laden: " + throwable.getMessage(), 
+                            Toast.LENGTH_LONG).show();
                     });
                 }
                 return null;
             });
     }
-    
-    private void showAccountOptionsDialog(Account account) {
-        String[] options = {
-            "Wiederherstellen",
-            "Mehr anzeigen",
-            "Abbrechen"
-        };
-        
-        new AlertDialog.Builder(requireContext())
-            .setTitle(account.getName())
-            .setItems(options, (dialog, which) -> {
-                switch (which) {
-                    case 0: // Wiederherstellen
-                        restoreAccount(account);
-                        break;
-                    case 1: // Mehr anzeigen
-                        openAccountDetail(account);
-                        break;
-                    case 2: // Abbrechen
-                        dialog.dismiss();
-                        break;
-                }
-            })
-            .show();
-    }
-    
-    private void restoreAccount(Account account) {
-        new Thread(() -> {
-            try {
-                // Force Stop MonopolyGo
-                AccountManager.forceStopApp();
-                Thread.sleep(1000);
-                
-                // Restore Account
-                String sourceFile = AccountManager.getAccountsEigenePath() + 
-                                   account.getName() + "/WithBuddies.Services.User.0Production.dat";
-                boolean success = AccountManager.restoreAccount(sourceFile);
-                
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        if (success) {
-                            // Update last_played in Supabase
-                            repository.updateLastPlayed(account.getId())
-                                .thenRun(() -> {
-                                    if (getActivity() != null) {
-                                        getActivity().runOnUiThread(() -> {
-                                            Toast.makeText(requireContext(), 
-                                                "✅ Account wiederhergestellt", 
-                                                Toast.LENGTH_SHORT).show();
-                                            loadAccounts(); // Refresh list
-                                        });
-                                    }
-                                })
-                                .exceptionally(e -> {
-                                    Log.e(TAG, "Failed to update last_played", e);
-                                    return null;
-                                });
-                        } else {
-                            Toast.makeText(requireContext(), 
-                                "❌ Wiederherstellung fehlgeschlagen", 
-                                Toast.LENGTH_LONG).show();
-                        }
-                    });
-                }
-            } catch (Exception e) {
-                Log.e(TAG, "Restore failed", e);
-                if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
-                        Toast.makeText(requireContext(), 
-                            "❌ Fehler: " + e.getMessage(), 
-                            Toast.LENGTH_LONG).show();
-                    });
-                }
-            }
-        }).start();
-    }
-    
-    private void openAccountDetail(Account account) {
-        Intent intent = new Intent(requireContext(), AccountDetailActivity.class);
-        intent.putExtra("account_id", account.getId());
-        startActivity(intent);
-    }
+
+    // ==================== BACKUP DIALOG ====================
     
     private void showBackupDialog() {
         View dialogView = LayoutInflater.from(requireContext())
@@ -190,7 +96,7 @@ public class AccountListFragment extends Fragment {
         
         EditText etInternalId = dialogView.findViewById(R.id.et_internal_id);
         EditText etNote = dialogView.findViewById(R.id.et_note);
-        
+
         new AlertDialog.Builder(requireContext())
             .setTitle("Account sichern")
             .setView(dialogView)
@@ -200,7 +106,7 @@ public class AccountListFragment extends Fragment {
                 
                 if (accountName.isEmpty()) {
                     Toast.makeText(requireContext(), 
-                        "❌ Bitte Account-Namen eingeben", 
+                        "Bitte Interne ID eingeben", 
                         Toast.LENGTH_SHORT).show();
                     return;
                 }
@@ -210,131 +116,240 @@ public class AccountListFragment extends Fragment {
             .setNegativeButton("Abbrechen", null)
             .show();
     }
-    
-    private void showSupabaseNotConfiguredDialog() {
-        new AlertDialog.Builder(requireContext())
-            .setTitle("Supabase nicht konfiguriert")
-            .setMessage("Die Datenbank-Verbindung ist nicht eingerichtet.\n\n" +
-                       "Um die App vollständig nutzen zu können, müssen Supabase-Zugangsdaten " +
-                       "in der Datei gradle.properties hinzugefügt werden.\n\n" +
-                       "Weitere Informationen findest du in SUPABASE_SETUP.md\n\n" +
-                       "Du kannst die App trotzdem nutzen, aber Accounts werden nur lokal gespeichert.")
-            .setPositiveButton("OK", null)
-            .setIcon(android.R.drawable.ic_dialog_alert)
-            .show();
-    }
+
+    // ==================== BACKUP ACCOUNT ====================
     
     private void backupAccount(String accountName, String note) {
         new Thread(() -> {
             try {
-                // 1. File Backup
-                boolean fileBackupSuccess = AccountManager.backupAccount(
-                    AccountManager.getAccountsEigenePath(), 
-                    accountName
+                Log.d(TAG, "Starting backup for: " + accountName);
+                
+                // 1. MonopolyGo beenden
+                AccountManager.forceStopApp();
+                Thread.sleep(1000);
+                
+                // 2. Backup-Verzeichnis erstellen
+                String backupDir = requireContext().getFilesDir().getAbsolutePath() + 
+                                   "/backup/" + accountName + "/";
+                RootManager.runRootCommand("mkdir -p '" + backupDir + "'");
+                
+                // 3. Dateien kopieren
+                String monopolyGoData = "/data/data/com.scopely.monopolygo/";
+                
+                // DiskBasedCacheDirectory
+                boolean diskCopySuccess = RootManager.copyDirectory(
+                    monopolyGoData + "files/DiskBasedCacheDirectory/",
+                    backupDir + "DiskBasedCacheDirectory/"
                 );
+                Log.d(TAG, "DiskBasedCacheDirectory copy: " + diskCopySuccess);
                 
-                if (!fileBackupSuccess) {
-                    if (getActivity() != null) {
-                        getActivity().runOnUiThread(() -> {
-                            Toast.makeText(requireContext(), 
-                                "❌ File-Backup fehlgeschlagen", 
-                                Toast.LENGTH_LONG).show();
-                        });
-                    }
-                    return;
-                }
+                // shared_prefs
+                boolean prefsCopySuccess = RootManager.copyDirectory(
+                    monopolyGoData + "shared_prefs/",
+                    backupDir + "shared_prefs/"
+                );
+                Log.d(TAG, "shared_prefs copy: " + prefsCopySuccess);
                 
-                // 2. Extract UserID
-                String userId = DataExtractor.extractUserId();
+                // settings_ssaid.xml
+                boolean ssaidCopySuccess = RootManager.copyFile(
+                    "/data/system/users/0/settings_ssaid.xml",
+                    backupDir + "settings_ssaid.xml"
+                );
+                Log.d(TAG, "settings_ssaid.xml copy: " + ssaidCopySuccess);
                 
-                // 3. Extract all Device IDs
-                DeviceIdExtractor.extractAllIds(requireContext())
-                    .thenAccept(deviceIds -> {
-                        // 4. Create Account object with proper constructor
-                        Account account = new Account(accountName, userId);
-                        account.setSsaid(deviceIds.ssaid);
-                        account.setGaid(deviceIds.gaid);
-                        account.setDeviceId(deviceIds.deviceId);
-                        account.setNote(note);
-                        
-                        // Create short link if userId is available
-                        if (userId != null && !userId.isEmpty()) {
-                            String shortLink = ShortLinkManager.createShortLink(userId, accountName);
-                            account.setShortLink(shortLink);
-                            account.setFriendLink("monopolygo://add-friend/" + userId);
-                        }
-                        
-                        // 5. Save to Supabase (if configured)
-                        if (!repository.isSupabaseConfigured()) {
-                            if (getActivity() != null) {
-                                getActivity().runOnUiThread(() -> {
-                                    Toast.makeText(requireContext(), 
-                                        "✅ Account lokal gesichert\n⚠️ Supabase nicht konfiguriert - keine Cloud-Synchronisation", 
-                                        Toast.LENGTH_LONG).show();
-                                });
-                            }
-                            return;
-                        }
-                        
-                        repository.createAccount(account)
-                            .thenRun(() -> {
-                                if (getActivity() != null) {
-                                    getActivity().runOnUiThread(() -> {
-                                        Toast.makeText(requireContext(), 
-                                            "✅ Backup komplett", 
-                                            Toast.LENGTH_SHORT).show();
-                                        loadAccounts(); // Refresh list
-                                    });
-                                }
-                            })
-                            .exceptionally(e -> {
-                                Log.e(TAG, "Supabase save failed", e);
-                                if (getActivity() != null) {
-                                    getActivity().runOnUiThread(() -> {
-                                        String errorMsg = e.getMessage();
-                                        Log.e(TAG, "Full error message: " + errorMsg);
-                                        if (errorMsg != null && errorMsg.contains("nicht konfiguriert")) {
-                                            Toast.makeText(requireContext(), 
-                                                "✅ Account lokal gesichert\n⚠️ Supabase nicht konfiguriert", 
-                                                Toast.LENGTH_LONG).show();
-                                        } else {
-                                            Toast.makeText(requireContext(), 
-                                                "⚠️ Supabase-Fehler: " + errorMsg + "\n✅ Account lokal gesichert", 
-                                                Toast.LENGTH_LONG).show();
-                                        }
-                                    });
-                                }
-                                return null;
-                            });
-                    })
-                    .exceptionally(e -> {
-                        Log.e(TAG, "Device ID extraction failed", e);
+                // 4. IDs extrahieren
+                String prefsFile = backupDir + "shared_prefs/com.scopely.monopolygo.v2.playerprefs.xml";
+                String xmlContent = RootManager.readFile(prefsFile);
+                
+                String userId = extractXmlValue(xmlContent, "Scopely.Attribution.UserId");
+                String gaid = extractXmlValue(xmlContent, "GoogleAdId");
+                String deviceToken = extractXmlValue(xmlContent, "LastOpenedDeviceToken");
+                String appSetId = extractXmlValue(xmlContent, "AppSetId");
+                
+                Log.d(TAG, "Extracted - UserID: " + userId + ", GAID: " + gaid + 
+                           ", DeviceToken: " + deviceToken + ", AppSetID: " + appSetId);
+                
+                // 5. SSAID extrahieren
+                String ssaidContent = RootManager.readFile(backupDir + "settings_ssaid.xml");
+                String ssaid = extractSSAID(ssaidContent);
+                
+                Log.d(TAG, "Extracted SSAID: " + ssaid);
+                
+                // 6. Account-Objekt erstellen (OHNE Friend Link)
+                Account account = new Account();
+                account.setName(accountName);
+                account.setUserId(userId);
+                account.setGaid(gaid);
+                account.setDeviceToken(deviceToken);
+                account.setAppSetId(appSetId);
+                account.setSsaid(ssaid);
+                account.setNote(note);
+                account.setAccountStatus("active");
+                account.setLastPlayed(Instant.now().toString());
+                
+                // WICHTIG: KEIN Friend Link generieren!
+                // Friend Link wird manuell später hinzugefügt
+                
+                // 7. In Supabase speichern
+                repository.createAccount(account)
+                    .thenRun(() -> {
                         if (getActivity() != null) {
                             getActivity().runOnUiThread(() -> {
                                 Toast.makeText(requireContext(), 
-                                    "⚠️ Device-ID-Extraktion fehlgeschlagen: " + e.getMessage() + "\n✅ Account lokal gesichert", 
+                                    "Backup erfolgreich erstellt", 
+                                    Toast.LENGTH_SHORT).show();
+                                loadAccounts();
+                            });
+                        }
+                    })
+                    .exceptionally(throwable -> {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                Log.e(TAG, "Supabase save failed", throwable);
+                                Toast.makeText(requireContext(), 
+                                    "Fehler beim Speichern: " + throwable.getMessage(), 
                                     Toast.LENGTH_LONG).show();
                             });
                         }
                         return null;
                     });
-                
+                    
             } catch (Exception e) {
                 Log.e(TAG, "Backup failed", e);
                 if (getActivity() != null) {
-                    getActivity().runOnUiThread(() -> {
+                    getActivity().runOnUiThread(() -> 
                         Toast.makeText(requireContext(), 
-                            "❌ Fehler: " + e.getMessage(), 
-                            Toast.LENGTH_LONG).show();
-                    });
+                            "Backup-Fehler: " + e.getMessage(), 
+                            Toast.LENGTH_LONG).show()
+                    );
                 }
             }
         }).start();
     }
+
+    // ==================== ACCOUNT OPTIONS ====================
     
+    private void showAccountOptions(Account account) {
+        String[] options = {"Wiederherstellen", "Mehr anzeigen", "Abbrechen"};
+
+        new AlertDialog.Builder(requireContext())
+            .setTitle(account.getName())
+            .setItems(options, (dialog, which) -> {
+                switch (which) {
+                    case 0: 
+                        restoreAccount(account); 
+                        break;
+                    case 1: 
+                        openAccountDetail(account); 
+                        break;
+                }
+            })
+            .show();
+    }
+
+    // ==================== RESTORE ACCOUNT ====================
+    
+    private void restoreAccount(Account account) {
+        new AlertDialog.Builder(requireContext())
+            .setTitle("Account wiederherstellen")
+            .setMessage("Möchtest du den Account '" + account.getName() + "' wiederherstellen?")
+            .setPositiveButton("Ja", (dialog, which) -> {
+                new Thread(() -> {
+                    try {
+                        Log.d(TAG, "Restoring account: " + account.getName());
+                        
+                        // 1. MonopolyGo schließen
+                        AccountManager.forceStopApp();
+                        Thread.sleep(1000);
+                        
+                        // 2. Dateien zurückkopieren
+                        String backupDir = requireContext().getFilesDir().getAbsolutePath() + 
+                                           "/backup/" + account.getName() + "/";
+                        String monopolyGoData = "/data/data/com.scopely.monopolygo/";
+                        
+                        // shared_prefs zurückkopieren
+                        boolean prefsRestored = RootManager.copyDirectory(
+                            backupDir + "shared_prefs/",
+                            monopolyGoData + "shared_prefs/"
+                        );
+                        Log.d(TAG, "shared_prefs restored: " + prefsRestored);
+                        
+                        // DiskBasedCacheDirectory zurückkopieren
+                        boolean diskRestored = RootManager.copyDirectory(
+                            backupDir + "DiskBasedCacheDirectory/",
+                            monopolyGoData + "files/DiskBasedCacheDirectory/"
+                        );
+                        Log.d(TAG, "DiskBasedCacheDirectory restored: " + diskRestored);
+                        
+                        // Berechtigungen setzen
+                        RootManager.setPermissions(monopolyGoData + "shared_prefs/", "660");
+                        RootManager.setPermissions(monopolyGoData + "files/DiskBasedCacheDirectory/", "771");
+                        
+                        // 3. Fragen ob App gestartet werden soll
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                new AlertDialog.Builder(requireContext())
+                                    .setTitle("Account wiederhergestellt")
+                                    .setMessage("Möchtest du MonopolyGo jetzt starten?")
+                                    .setPositiveButton("Ja", (d, w) -> {
+                                        AccountManager.startApp();
+                                    })
+                                    .setNegativeButton("Nein", null)
+                                    .show();
+                            });
+                        }
+                        
+                        // 4. Last-Played aktualisieren
+                        repository.updateLastPlayed(account.getId())
+                            .thenRun(() -> {
+                                if (getActivity() != null) {
+                                    getActivity().runOnUiThread(() -> {
+                                        loadAccounts();
+                                    });
+                                }
+                            });
+                            
+                    } catch (Exception e) {
+                        Log.e(TAG, "Restore failed", e);
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> 
+                                Toast.makeText(requireContext(), 
+                                    "Restore-Fehler: " + e.getMessage(), 
+                                    Toast.LENGTH_LONG).show()
+                            );
+                        }
+                    }
+                }).start();
+            })
+            .setNegativeButton("Abbrechen", null)
+            .show();
+    }
+
+    // ==================== HELPER METHODS ====================
+    
+    private String extractXmlValue(String xmlContent, String key) {
+        String pattern = "<string name=\"" + key + "\">([^<]+)</string>";
+        Pattern regex = Pattern.compile(pattern);
+        Matcher matcher = regex.matcher(xmlContent);
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private String extractSSAID(String ssaidContent) {
+        String pattern = "com\\.scopely\\.monopolygo[^/]*/[^/]*/[^/]*/([0-9a-f]{16})";
+        Pattern regex = Pattern.compile(pattern);
+        Matcher matcher = regex.matcher(ssaidContent);
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private void openAccountDetail(Account account) {
+        Intent intent = new Intent(requireContext(), AccountDetailActivity.class);
+        intent.putExtra("account_id", account.getId());
+        startActivity(intent);
+    }
+
     @Override
     public void onResume() {
         super.onResume();
-        loadAccounts(); // Refresh on return
+        loadAccounts();
     }
 }

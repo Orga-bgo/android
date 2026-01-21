@@ -41,6 +41,8 @@ CREATE TABLE accounts (
     ssaid VARCHAR(200),
     gaid VARCHAR(200),
     device_id VARCHAR(200),
+    device_token VARCHAR(200),
+    app_set_id VARCHAR(200),
     
     -- Flags
     is_suspended BOOLEAN GENERATED ALWAYS AS (
@@ -126,6 +128,8 @@ CREATE INDEX idx_accounts_user_id ON accounts(user_id);
 CREATE INDEX idx_accounts_status ON accounts(account_status);
 CREATE INDEX idx_accounts_deleted ON accounts(deleted_at) WHERE deleted_at IS NULL;
 CREATE INDEX idx_accounts_suspended ON accounts(is_suspended);
+CREATE INDEX idx_accounts_device_token ON accounts(device_token);
+CREATE INDEX idx_accounts_app_set_id ON accounts(app_set_id);
 
 -- Events
 CREATE INDEX idx_events_date_range ON events(start_date, end_date);

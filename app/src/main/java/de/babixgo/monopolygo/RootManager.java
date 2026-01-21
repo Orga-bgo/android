@@ -203,4 +203,50 @@ public class RootManager {
     public static boolean hasRootAccess() {
         return hasRootAccess;
     }
+    
+    /**
+     * Verzeichnis rekursiv kopieren
+     */
+    public static boolean copyDirectory(String source, String dest) {
+        String command = String.format(
+            "mkdir -p '%s' && cp -r '%s'/* '%s'",
+            dest, source, dest
+        );
+        String result = runRootCommand(command);
+        return !result.contains("Error") && !result.contains("failed");
+    }
+    
+    /**
+     * Einzelne Datei kopieren
+     */
+    public static boolean copyFile(String source, String dest) {
+        String command = String.format(
+            "mkdir -p $(dirname '%s') && cp '%s' '%s'",
+            dest, source, dest
+        );
+        String result = runRootCommand(command);
+        return !result.contains("Error") && !result.contains("failed");
+    }
+    
+    /**
+     * Datei lesen
+     */
+    public static String readFile(String filePath) {
+        String command = "cat '" + filePath + "'";
+        return runRootCommand(command);
+    }
+    
+    /**
+     * Berechtigungen setzen
+     */
+    public static void setPermissions(String path, String permissions) {
+        runRootCommand("chmod -R " + permissions + " '" + path + "'");
+    }
+    
+    /**
+     * Owner setzen (optional, falls benötigt)
+     */
+    public static void setOwner(String path, String owner) {
+        runRootCommand("chown -R " + owner + ":" + owner + " '" + path + "'");
+    }
 }
