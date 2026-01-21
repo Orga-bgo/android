@@ -10,8 +10,8 @@ import androidx.fragment.app.Fragment;
 import de.babixgo.monopolygo.R;
 
 /**
- * Placeholder Fragment for Tycoon Racers
- * Full implementation in Phase 3
+ * Fragment for Tycoon Racers
+ * Full implementation pending
  */
 public class TycoonRacersFragment extends Fragment {
     
@@ -20,10 +20,6 @@ public class TycoonRacersFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, 
                             @Nullable ViewGroup container, 
                             @Nullable Bundle savedInstanceState) {
-        // TODO: Implement in Phase 3
-        // For now, return a simple placeholder view
-        View view = new View(requireContext());
-        view.setBackgroundColor(0xFFE9EEF2); // background_light color
-        return view;
+        return inflater.inflate(R.layout.fragment_tycoon_racers, container, false);
     }
 }
