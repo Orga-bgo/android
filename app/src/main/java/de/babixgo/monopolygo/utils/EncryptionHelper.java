@@ -12,6 +12,7 @@ import javax.crypto.spec.SecretKeySpec;
 public class EncryptionHelper {
     private static final String TAG = "EncryptionHelper";
     private static final String ALGORITHM = "AES";
+    private static final String TRANSFORMATION = "AES/ECB/PKCS5Padding"; // Specify mode and padding
     
     // IMPORTANT: In production, load this key from secure storage!
     // This key is 32 bytes (256 bits) for AES-256
@@ -29,7 +30,7 @@ public class EncryptionHelper {
         
         try {
             SecretKeySpec keySpec = new SecretKeySpec(KEY.getBytes(), ALGORITHM);
-            Cipher cipher = Cipher.getInstance(ALGORITHM);
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
             cipher.init(Cipher.ENCRYPT_MODE, keySpec);
             
             byte[] encrypted = cipher.doFinal(plainText.getBytes("UTF-8"));
@@ -53,7 +54,7 @@ public class EncryptionHelper {
         
         try {
             SecretKeySpec keySpec = new SecretKeySpec(KEY.getBytes(), ALGORITHM);
-            Cipher cipher = Cipher.getInstance(ALGORITHM);
+            Cipher cipher = Cipher.getInstance(TRANSFORMATION);
             cipher.init(Cipher.DECRYPT_MODE, keySpec);
             
             byte[] decoded = Base64.decode(encryptedText, Base64.NO_WRAP);
