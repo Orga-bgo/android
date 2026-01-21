@@ -250,10 +250,8 @@ public class AccountListFragment extends Fragment {
                 // 3. Extract all Device IDs
                 DeviceIdExtractor.extractAllIds(requireContext())
                     .thenAccept(deviceIds -> {
-                        // 4. Create Account object
-                        Account account = new Account();
-                        account.setName(accountName);
-                        account.setUserId(userId);
+                        // 4. Create Account object with proper constructor
+                        Account account = new Account(accountName, userId);
                         account.setSsaid(deviceIds.ssaid);
                         account.setGaid(deviceIds.gaid);
                         account.setDeviceId(deviceIds.deviceId);
@@ -294,19 +292,31 @@ public class AccountListFragment extends Fragment {
                                 if (getActivity() != null) {
                                     getActivity().runOnUiThread(() -> {
                                         String errorMsg = e.getMessage();
+                                        Log.e(TAG, "Full error message: " + errorMsg);
                                         if (errorMsg != null && errorMsg.contains("nicht konfiguriert")) {
                                             Toast.makeText(requireContext(), 
                                                 "✅ Account lokal gesichert\n⚠️ Supabase nicht konfiguriert", 
                                                 Toast.LENGTH_LONG).show();
                                         } else {
                                             Toast.makeText(requireContext(), 
-                                                "⚠️ Supabase-Fehler: " + errorMsg, 
+                                                "⚠️ Supabase-Fehler: " + errorMsg + "\n✅ Account lokal gesichert", 
                                                 Toast.LENGTH_LONG).show();
                                         }
                                     });
                                 }
                                 return null;
                             });
+                    })
+                    .exceptionally(e -> {
+                        Log.e(TAG, "Device ID extraction failed", e);
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                Toast.makeText(requireContext(), 
+                                    "⚠️ Device-ID-Extraktion fehlgeschlagen: " + e.getMessage() + "\n✅ Account lokal gesichert", 
+                                    Toast.LENGTH_LONG).show();
+                            });
+                        }
+                        return null;
                     });
                 
             } catch (Exception e) {
