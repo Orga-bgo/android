@@ -98,6 +98,32 @@ CREATE TABLE IF NOT EXISTS customers (
     updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Migrate old customers table structure to new structure
+DO $$
+BEGIN
+    -- Remove old columns if they exist (from version 1-2)
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name='customers' AND column_name='friend_link') THEN
+        ALTER TABLE customers DROP COLUMN friend_link;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name='customers' AND column_name='user_id') THEN
+        ALTER TABLE customers DROP COLUMN user_id;
+    END IF;
+
+    IF EXISTS (SELECT 1 FROM information_schema.columns
+               WHERE table_name='customers' AND column_name='slots') THEN
+        ALTER TABLE customers DROP COLUMN slots;
+    END IF;
+
+    -- Add new columns if they don't exist
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                   WHERE table_name='customers' AND column_name='notes') THEN
+        ALTER TABLE customers ADD COLUMN notes TEXT;
+    END IF;
+END $$;
+
 -- CUSTOMER ACCOUNTS TABLE
 CREATE TABLE IF NOT EXISTS customer_accounts (
     id BIGSERIAL PRIMARY KEY,
