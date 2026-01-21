@@ -1,7 +1,7 @@
 package de.babixgo.monopolygo.database;
 
 import de.babixgo.monopolygo.models.Customer;
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.text.SimpleDateFormat;
@@ -9,87 +9,93 @@ import java.util.Date;
 import java.util.Locale;
 
 /**
- * Repository for managing Customer data in Supabase
- * Provides async operations using CompletableFuture
+ * Repository for managing Customer data
+ * STUB IMPLEMENTATION - No Supabase calls yet, returns empty/dummy data
+ * This prevents crashes while UI is being developed
  */
 public class CustomerRepository {
-    private final SupabaseManager supabase;
+    // In-memory storage for stub implementation
+    private final List<Customer> customers = new ArrayList<>();
+    private long nextId = 1;
     
     public CustomerRepository() {
-        this.supabase = SupabaseManager.getInstance();
+        // No Supabase needed for stub
     }
     
     /**
      * Get all customers ordered by name
+     * STUB: Returns empty list for now
      */
     public CompletableFuture<List<Customer>> getAllCustomers() {
         return CompletableFuture.supplyAsync(() -> {
-            try {
-                if (!supabase.isConfigured()) {
-                    throw new RuntimeException("Supabase ist nicht konfiguriert. Bitte füge deine Supabase-Zugangsdaten in gradle.properties hinzu.");
-                }
-                return supabase.select("customers", Customer.class, "order=name.asc");
-            } catch (IOException e) {
-                throw new RuntimeException("Fehler beim Laden der Kunden: " + e.getMessage(), e);
-            }
+            // Return copy of in-memory list
+            return new ArrayList<>(customers);
         });
     }
     
     /**
      * Get customer by ID
+     * STUB: Returns null if not found in memory
      */
     public CompletableFuture<Customer> getCustomerById(long id) {
         return CompletableFuture.supplyAsync(() -> {
-            try {
-                return supabase.selectSingle("customers", Customer.class, "id=eq." + id);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to load customer: " + e.getMessage(), e);
+            for (Customer c : customers) {
+                if (c.getId() == id) {
+                    return c;
+                }
             }
+            return null;
         });
     }
     
     /**
      * Create new customer
+     * STUB: Stores in memory with dummy ID
      */
     public CompletableFuture<Customer> createCustomer(Customer customer) {
         return CompletableFuture.supplyAsync(() -> {
-            try {
-                String now = getCurrentTimestamp();
-                customer.setCreatedAt(now);
-                customer.setUpdatedAt(now);
-                
-                return supabase.insert("customers", customer, Customer.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to create customer: " + e.getMessage(), e);
-            }
+            // Set dummy ID
+            customer.setId(nextId++);
+            
+            // Set timestamps
+            String now = getCurrentTimestamp();
+            customer.setCreatedAt(now);
+            customer.setUpdatedAt(now);
+            
+            // Add to in-memory list
+            customers.add(customer);
+            
+            return customer;
         });
     }
     
     /**
      * Update customer
+     * STUB: Updates in memory
      */
     public CompletableFuture<Customer> updateCustomer(Customer customer) {
         return CompletableFuture.supplyAsync(() -> {
-            try {
-                customer.setUpdatedAt(getCurrentTimestamp());
-                
-                return supabase.update("customers", customer, "id=eq." + customer.getId(), Customer.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to update customer: " + e.getMessage(), e);
+            customer.setUpdatedAt(getCurrentTimestamp());
+            
+            // Update in memory
+            for (int i = 0; i < customers.size(); i++) {
+                if (customers.get(i).getId() == customer.getId()) {
+                    customers.set(i, customer);
+                    break;
+                }
             }
+            
+            return customer;
         });
     }
     
     /**
-     * Delete customer (CASCADE will delete associated customer_accounts)
+     * Delete customer
+     * STUB: Removes from memory
      */
     public CompletableFuture<Void> deleteCustomer(long id) {
         return CompletableFuture.runAsync(() -> {
-            try {
-                supabase.delete("customers", "id=eq." + id);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to delete customer: " + e.getMessage(), e);
-            }
+            customers.removeIf(c -> c.getId() == id);
         });
     }
     
@@ -103,8 +109,9 @@ public class CustomerRepository {
     
     /**
      * Check if Supabase is configured
+     * STUB: Always returns false for now
      */
     public boolean isSupabaseConfigured() {
-        return supabase.isConfigured();
+        return false;
     }
 }
