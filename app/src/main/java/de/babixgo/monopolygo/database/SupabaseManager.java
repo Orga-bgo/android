@@ -81,7 +81,8 @@ public class SupabaseManager {
         
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("Unexpected response " + response);
+                String errorBody = response.body() != null ? response.body().string() : "no body";
+                throw new IOException("Supabase select failed: " + response.code() + " " + response.message() + " - " + errorBody);
             }
             
             if (response.body() == null) {
@@ -111,7 +112,8 @@ public class SupabaseManager {
         
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("Unexpected response " + response);
+                String errorBody = response.body() != null ? response.body().string() : "no body";
+                throw new IOException("Supabase selectSingle failed: " + response.code() + " " + response.message() + " - " + errorBody);
             }
             
             if (response.body() == null) {
@@ -142,7 +144,8 @@ public class SupabaseManager {
         
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("Unexpected response " + response);
+                String errorBody = response.body() != null ? response.body().string() : "no body";
+                throw new IOException("Supabase insert failed: " + response.code() + " " + response.message() + " - " + errorBody);
             }
             
             if (response.body() == null) {
@@ -176,7 +179,8 @@ public class SupabaseManager {
         
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("Unexpected response " + response);
+                String errorBody = response.body() != null ? response.body().string() : "no body";
+                throw new IOException("Supabase update failed: " + response.code() + " " + response.message() + " - " + errorBody);
             }
             
             if (response.body() == null) {
@@ -206,7 +210,8 @@ public class SupabaseManager {
         
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) {
-                throw new IOException("Unexpected response " + response);
+                String errorBody = response.body() != null ? response.body().string() : "no body";
+                throw new IOException("Supabase delete failed: " + response.code() + " " + response.message() + " - " + errorBody);
             }
         }
     }
