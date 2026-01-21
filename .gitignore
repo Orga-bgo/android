@@ -34,3 +34,6 @@ out/
 # Keystore files
 *.jks
 *.keystore
+
+# Old backup files from Phase 1 restructure
+*_old.xml
