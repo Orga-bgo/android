@@ -196,6 +196,7 @@ public class CustomerAccountRepository {
     
     /**
      * Helper method for current timestamp in ISO 8601 format
+     * Uses system default locale for consistency with CustomerRepository
      */
     private String getCurrentTimestamp() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
