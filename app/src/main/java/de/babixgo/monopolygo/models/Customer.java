@@ -1,9 +1,13 @@
 package de.babixgo.monopolygo.models;
 
 import com.google.gson.annotations.SerializedName;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 /**
- * Customer model for event customers
+ * Customer model for customer management
  * Represents a customer in the Supabase database
  */
 public class Customer {
@@ -13,17 +17,8 @@ public class Customer {
     @SerializedName("name")
     private String name;
     
-    @SerializedName("friend_link")
-    private String friendLink;
-    
-    @SerializedName("friend_code")
-    private String friendCode;
-    
-    @SerializedName("user_id")
-    private String userId; // Extracted from friend link
-    
-    @SerializedName("slots")
-    private int slots; // Default 4
+    @SerializedName("notes")
+    private String notes;
     
     @SerializedName("created_at")
     private String createdAt;
@@ -31,13 +26,14 @@ public class Customer {
     @SerializedName("updated_at")
     private String updatedAt;
     
+    // Transient - not in DB, will be populated when loaded
+    private List<CustomerAccount> accounts = new ArrayList<>();
+    
     // Constructors
     public Customer() {}
     
-    public Customer(String name, String friendLink, int slots) {
+    public Customer(String name) {
         this.name = name;
-        this.friendLink = friendLink;
-        this.slots = slots;
     }
     
     // Getters & Setters
@@ -47,21 +43,43 @@ public class Customer {
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
     
-    public String getFriendLink() { return friendLink; }
-    public void setFriendLink(String friendLink) { this.friendLink = friendLink; }
-    
-    public String getFriendCode() { return friendCode; }
-    public void setFriendCode(String friendCode) { this.friendCode = friendCode; }
-    
-    public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
-    
-    public int getSlots() { return slots; }
-    public void setSlots(int slots) { this.slots = slots; }
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
     
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
     
     public String getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(String updatedAt) { this.updatedAt = updatedAt; }
+    
+    public List<CustomerAccount> getAccounts() { return accounts; }
+    public void setAccounts(List<CustomerAccount> accounts) { this.accounts = accounts; }
+    
+    // Helper methods
+    
+    /**
+     * Number of accounts for this customer
+     */
+    public int getAccountCount() {
+        return accounts != null ? accounts.size() : 0;
+    }
+    
+    /**
+     * Returns all services that this customer uses (across all accounts)
+     * Format: "Partner / Race / Boost"
+     */
+    public String getServicesDisplay() {
+        if (accounts == null || accounts.isEmpty()) {
+            return "-";
+        }
+        
+        Set<String> services = new HashSet<>();
+        for (CustomerAccount acc : accounts) {
+            if (acc.isServicePartner()) services.add("Partner");
+            if (acc.isServiceRace()) services.add("Race");
+            if (acc.isServiceBoost()) services.add("Boost");
+        }
+        
+        return services.isEmpty() ? "-" : String.join(" / ", services);
+    }
 }

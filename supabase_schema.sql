@@ -40,6 +40,10 @@ CREATE TABLE accounts (
     -- Flags
     has_error BOOLEAN DEFAULT FALSE,
     
+    -- Customer Account Link
+    is_customer_account BOOLEAN DEFAULT FALSE,
+    customer_account_id BIGINT REFERENCES customer_accounts(id) ON DELETE SET NULL,
+    
     -- Metadata
     note TEXT,
     last_played TIMESTAMP,
@@ -74,15 +78,58 @@ CREATE TABLE events (
 CREATE TABLE customers (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
-    friend_link TEXT NOT NULL,
-    friend_code VARCHAR(50),
-    user_id VARCHAR(50), -- Extracted from friend link
-    slots INTEGER DEFAULT 4, -- Number of account slots
+    notes TEXT,
     
     -- Timestamps
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- ============================================================================
+-- CUSTOMER ACCOUNTS TABLE
+-- ============================================================================
+
+CREATE TABLE customer_accounts (
+    id BIGSERIAL PRIMARY KEY,
+    customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    ingame_name VARCHAR(100),
+    friend_link TEXT,
+    friend_code VARCHAR(50),
+    
+    -- Services (multiple services possible - checkboxes)
+    service_partner BOOLEAN DEFAULT FALSE,
+    service_race BOOLEAN DEFAULT FALSE,
+    service_boost BOOLEAN DEFAULT FALSE,
+    
+    -- Partner-specific data
+    partner_count INTEGER CHECK (partner_count >= 1 AND partner_count <= 4),
+    
+    -- Boost-specific data
+    backup_account_id BIGINT REFERENCES accounts(id) ON DELETE SET NULL,
+    backup_created_at TIMESTAMP,
+    credentials_username VARCHAR(100),
+    credentials_password TEXT, -- AES-256 encrypted
+    
+    -- Timestamps
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+COMMENT ON TABLE customers IS 'Kunden-Verwaltung';
+COMMENT ON COLUMN customers.name IS 'Kundenname';
+COMMENT ON COLUMN customers.notes IS 'Optionale Notizen zum Kunden';
+
+COMMENT ON TABLE customer_accounts IS 'Accounts eines Kunden mit Services';
+COMMENT ON COLUMN customer_accounts.service_partner IS 'Partner-Service aktiviert';
+COMMENT ON COLUMN customer_accounts.service_race IS 'Race-Service aktiviert';
+COMMENT ON COLUMN customer_accounts.service_boost IS 'Boost-Service aktiviert';
+COMMENT ON COLUMN customer_accounts.partner_count IS 'Anzahl Partner (1-4), nur relevant wenn service_partner=true';
+COMMENT ON COLUMN customer_accounts.backup_account_id IS 'Verknüpfung zum Account-Backup (nur bei Boost)';
+COMMENT ON COLUMN customer_accounts.backup_created_at IS 'Zeitpunkt der Backup-Erstellung';
+COMMENT ON COLUMN customer_accounts.credentials_password IS 'Verschlüsseltes Passwort (AES-256)';
+
+COMMENT ON COLUMN accounts.is_customer_account IS 'True = Account gehört zu Kunde und wird nicht in AccountListFragment angezeigt';
+COMMENT ON COLUMN accounts.customer_account_id IS 'Verknüpfung zu customer_accounts';
 
 -- ============================================================================
 -- TEAMS TABLE
@@ -119,6 +166,8 @@ CREATE INDEX idx_accounts_deleted ON accounts(deleted_at) WHERE deleted_at IS NU
 CREATE INDEX idx_accounts_suspension_status ON accounts(suspension_status);
 CREATE INDEX idx_accounts_device_token ON accounts(device_token);
 CREATE INDEX idx_accounts_app_set_id ON accounts(app_set_id);
+CREATE INDEX idx_accounts_is_customer ON accounts(is_customer_account);
+CREATE INDEX idx_accounts_customer_account_id ON accounts(customer_account_id);
 
 -- Events
 CREATE INDEX idx_events_date_range ON events(start_date, end_date);
@@ -126,7 +175,10 @@ CREATE INDEX idx_events_status ON events(status);
 
 -- Customers
 CREATE INDEX idx_customers_name ON customers(name);
-CREATE INDEX idx_customers_user_id ON customers(user_id);
+
+-- Customer Accounts
+CREATE INDEX idx_customer_accounts_customer_id ON customer_accounts(customer_id);
+CREATE INDEX idx_customer_accounts_backup_id ON customer_accounts(backup_account_id);
 
 -- Teams
 CREATE INDEX idx_teams_event ON teams(event_id);
@@ -154,6 +206,9 @@ CREATE TRIGGER update_events_updated_at BEFORE UPDATE ON events
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_customers_updated_at BEFORE UPDATE ON customers
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_customer_accounts_updated_at BEFORE UPDATE ON customer_accounts
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON teams
@@ -208,6 +263,7 @@ GROUP BY e.id;
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 
 -- ⚠️ WARNING: Development/Testing Policies
@@ -226,6 +282,9 @@ CREATE POLICY "Allow all for authenticated users" ON events
     FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
 
 CREATE POLICY "Allow all for authenticated users" ON customers
+    FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
+
+CREATE POLICY "Allow all for authenticated users" ON customer_accounts
     FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
 
 CREATE POLICY "Allow all for authenticated users" ON teams
@@ -270,7 +329,8 @@ CREATE TABLE IF NOT EXISTS schema_version (
 
 INSERT INTO schema_version (version, description) VALUES
 (1, 'Initial schema with accounts, events, customers, and teams'),
-(2, 'Simplified suspension tracking - single status field instead of 4 counters');
+(2, 'Simplified suspension tracking - single status field instead of 4 counters'),
+(3, 'Customer management restructure - multi-account support with services');
 
 -- ============================================================================
 -- MIGRATION NOTES

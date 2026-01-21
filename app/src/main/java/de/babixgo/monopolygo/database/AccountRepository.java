@@ -36,6 +36,24 @@ public class AccountRepository {
     }
     
     /**
+     * Lädt alle Accounts, die NICHT zu Kunden gehören
+     * (für AccountListFragment)
+     */
+    public CompletableFuture<List<Account>> getNonCustomerAccounts() {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (!supabase.isConfigured()) {
+                    throw new RuntimeException("Supabase ist nicht konfiguriert. Bitte füge deine Supabase-Zugangsdaten in gradle.properties hinzu.");
+                }
+                return supabase.select("accounts", Account.class, 
+                    "deleted_at=is.null&is_customer_account=eq.false&order=name.asc");
+            } catch (IOException e) {
+                throw new RuntimeException("Fehler beim Laden der Accounts: " + e.getMessage(), e);
+            }
+        });
+    }
+    
+    /**
      * Account nach ID laden
      */
     public CompletableFuture<Account> getAccountById(long id) {

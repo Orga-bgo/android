@@ -198,6 +198,32 @@ public class SupabaseManager {
     }
     
     /**
+     * Execute PATCH request to update data with raw JSON string
+     * @param table Table name
+     * @param filters Query filters (e.g., "id=eq.123")
+     * @param jsonData Raw JSON string
+     */
+    public void update(String table, String filters, String jsonData) throws IOException {
+        String url = supabaseUrl + "/rest/v1/" + table + "?" + filters;
+        
+        RequestBody body = RequestBody.create(jsonData, JSON);
+        Request request = new Request.Builder()
+            .url(url)
+            .addHeader("apikey", supabaseKey)
+            .addHeader("Authorization", "Bearer " + supabaseKey)
+            .addHeader("Content-Type", "application/json")
+            .patch(body)
+            .build();
+        
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                String errorBody = response.body() != null ? response.body().string() : "no body";
+                throw new IOException("Supabase update failed: " + response.code() + " " + response.message() + " - " + errorBody);
+            }
+        }
+    }
+    
+    /**
      * Execute DELETE request
      */
     public void delete(String table, String filters) throws IOException {
