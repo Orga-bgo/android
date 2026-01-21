@@ -59,27 +59,20 @@ public class Customer {
     
     /**
      * Number of accounts for this customer
+     * TODO: Will be calculated from customer_accounts table
      */
     public int getAccountCount() {
-        return accounts != null ? accounts.size() : 0;
+        // Stub implementation - returns 0 for now
+        return 0;
     }
     
     /**
      * Returns all services that this customer uses (across all accounts)
      * Format: "Partner / Race / Boost"
+     * TODO: Will be calculated from customer_accounts table
      */
     public String getServicesDisplay() {
-        if (accounts == null || accounts.isEmpty()) {
-            return "-";
-        }
-        
-        Set<String> services = new HashSet<>();
-        for (CustomerAccount acc : accounts) {
-            if (acc.isServicePartner()) services.add("Partner");
-            if (acc.isServiceRace()) services.add("Race");
-            if (acc.isServiceBoost()) services.add("Boost");
-        }
-        
-        return services.isEmpty() ? "-" : String.join(" / ", services);
+        // Stub implementation - returns "-" for now
+        return "-";
     }
 }

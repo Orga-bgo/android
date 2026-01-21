@@ -25,12 +25,10 @@ public class CustomerRepository {
     public CompletableFuture<List<Customer>> getAllCustomers() {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                if (!supabase.isConfigured()) {
-                    throw new RuntimeException("Supabase ist nicht konfiguriert. Bitte füge deine Supabase-Zugangsdaten in gradle.properties hinzu.");
-                }
+                ensureConfigured();
                 return supabase.select("customers", Customer.class, "order=name.asc");
             } catch (IOException e) {
-                throw new RuntimeException("Fehler beim Laden der Kunden: " + e.getMessage(), e);
+                throw wrapIOException("Fehler beim Laden der Kunden", e);
             }
         });
     }
@@ -41,9 +39,10 @@ public class CustomerRepository {
     public CompletableFuture<Customer> getCustomerById(long id) {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                ensureConfigured();
                 return supabase.selectSingle("customers", Customer.class, "id=eq." + id);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to load customer: " + e.getMessage(), e);
+                throw wrapIOException("Fehler beim Laden des Kunden", e);
             }
         });
     }
@@ -54,13 +53,14 @@ public class CustomerRepository {
     public CompletableFuture<Customer> createCustomer(Customer customer) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                String now = getCurrentTimestamp();
-                customer.setCreatedAt(now);
-                customer.setUpdatedAt(now);
+                ensureConfigured();
+                
+                // Timestamps are set automatically by database triggers
+                // No need to set them manually
                 
                 return supabase.insert("customers", customer, Customer.class);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to create customer: " + e.getMessage(), e);
+                throw wrapIOException("Fehler beim Erstellen des Kunden", e);
             }
         });
     }
@@ -71,11 +71,13 @@ public class CustomerRepository {
     public CompletableFuture<Customer> updateCustomer(Customer customer) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                customer.setUpdatedAt(getCurrentTimestamp());
+                ensureConfigured();
+                
+                // updated_at is set automatically by database trigger
                 
                 return supabase.update("customers", customer, "id=eq." + customer.getId(), Customer.class);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to update customer: " + e.getMessage(), e);
+                throw wrapIOException("Fehler beim Aktualisieren des Kunden", e);
             }
         });
     }
@@ -86,11 +88,35 @@ public class CustomerRepository {
     public CompletableFuture<Void> deleteCustomer(long id) {
         return CompletableFuture.runAsync(() -> {
             try {
+                ensureConfigured();
                 supabase.delete("customers", "id=eq." + id);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to delete customer: " + e.getMessage(), e);
+                throw wrapIOException("Fehler beim Löschen des Kunden", e);
             }
         });
+    }
+    
+    /**
+     * Check if Supabase is configured
+     */
+    public boolean isSupabaseConfigured() {
+        return supabase.isConfigured();
+    }
+    
+    /**
+     * Ensure Supabase is configured, throw exception if not
+     */
+    private void ensureConfigured() {
+        if (!supabase.isConfigured()) {
+            throw new RuntimeException("Supabase ist nicht konfiguriert. Bitte füge deine Supabase-Zugangsdaten in gradle.properties hinzu.");
+        }
+    }
+    
+    /**
+     * Wrap IOException with German error message
+     */
+    private RuntimeException wrapIOException(String message, IOException e) {
+        return new RuntimeException(message + ": " + e.getMessage(), e);
     }
     
     /**
@@ -99,12 +125,5 @@ public class CustomerRepository {
     private String getCurrentTimestamp() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
         return sdf.format(new Date());
-    }
-    
-    /**
-     * Check if Supabase is configured
-     */
-    public boolean isSupabaseConfigured() {
-        return supabase.isConfigured();
     }
 }
