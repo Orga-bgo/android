@@ -25,9 +25,12 @@ public class EventRepository {
     public CompletableFuture<List<Event>> getAllEvents() {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                if (!supabase.isConfigured()) {
+                    throw new RuntimeException("Supabase ist nicht konfiguriert. Bitte füge deine Supabase-Zugangsdaten in gradle.properties hinzu.");
+                }
                 return supabase.select("events", Event.class, "order=start_date.desc");
             } catch (IOException e) {
-                throw new RuntimeException("Failed to load events", e);
+                throw new RuntimeException("Fehler beim Laden der Events: " + e.getMessage(), e);
             }
         });
     }

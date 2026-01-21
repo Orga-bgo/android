@@ -25,9 +25,12 @@ public class TeamRepository {
     public CompletableFuture<List<Team>> getTeamsByEventId(long eventId) {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                if (!supabase.isConfigured()) {
+                    throw new RuntimeException("Supabase ist nicht konfiguriert. Bitte füge deine Supabase-Zugangsdaten in gradle.properties hinzu.");
+                }
                 return supabase.select("teams", Team.class, "event_id=eq." + eventId + "&order=name.asc");
             } catch (IOException e) {
-                throw new RuntimeException("Failed to load teams", e);
+                throw new RuntimeException("Fehler beim Laden der Teams: " + e.getMessage(), e);
             }
         });
     }
