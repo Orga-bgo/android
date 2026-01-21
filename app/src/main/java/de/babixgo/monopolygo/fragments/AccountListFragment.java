@@ -22,8 +22,9 @@ import de.babixgo.monopolygo.activities.AccountDetailActivity;
 import de.babixgo.monopolygo.adapters.AccountListAdapter;
 import de.babixgo.monopolygo.database.AccountRepository;
 import de.babixgo.monopolygo.models.Account;
-import java.time.Instant;
-import java.util.ArrayList;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -185,7 +186,7 @@ public class AccountListFragment extends Fragment {
                 account.setSsaid(ssaid);
                 account.setNote(note);
                 account.setAccountStatus("active");
-                account.setLastPlayed(Instant.now().toString());
+                account.setLastPlayed(getCurrentTimestamp());
                 
                 // WICHTIG: KEIN Friend Link generieren!
                 // Friend Link wird manuell später hinzugefügt
@@ -345,6 +346,14 @@ public class AccountListFragment extends Fragment {
         Intent intent = new Intent(requireContext(), AccountDetailActivity.class);
         intent.putExtra("account_id", account.getId());
         startActivity(intent);
+    }
+    
+    /**
+     * Get current timestamp in ISO 8601 format
+     */
+    private String getCurrentTimestamp() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
+        return sdf.format(new Date());
     }
 
     @Override
