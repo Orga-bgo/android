@@ -42,7 +42,7 @@ CREATE TABLE accounts (
     
     -- Customer Account Link
     is_customer_account BOOLEAN DEFAULT FALSE,
-    customer_account_id BIGINT REFERENCES customer_accounts(id) ON DELETE SET NULL,
+    customer_account_id BIGINT, -- Foreign key added later after customer_accounts table creation
     
     -- Metadata
     note TEXT,
@@ -153,6 +153,18 @@ CREATE TABLE teams (
     
     CONSTRAINT unique_team_name_per_event UNIQUE (event_id, name)
 );
+
+-- ============================================================================
+-- FOREIGN KEY CONSTRAINTS (Added after table creation)
+-- ============================================================================
+
+-- Add foreign key from accounts to customer_accounts
+-- This must be done after customer_accounts table is created to avoid forward reference
+ALTER TABLE accounts
+    ADD CONSTRAINT fk_accounts_customer_account_id
+    FOREIGN KEY (customer_account_id)
+    REFERENCES customer_accounts(id)
+    ON DELETE SET NULL;
 
 -- ============================================================================
 -- INDEXES
