@@ -27,15 +27,8 @@ CREATE TABLE accounts (
     -- Status
     account_status account_status DEFAULT 'active',
     
-    -- Suspension tracking
-    suspension_0_days INTEGER DEFAULT 0,
-    suspension_3_days INTEGER DEFAULT 0,
-    suspension_7_days INTEGER DEFAULT 0,
-    suspension_permanent BOOLEAN DEFAULT FALSE,
-    suspension_count INTEGER GENERATED ALWAYS AS (
-        suspension_0_days + suspension_3_days + suspension_7_days + 
-        CASE WHEN suspension_permanent THEN 1 ELSE 0 END
-    ) STORED,
+    -- Suspension tracking (simplified)
+    suspension_status VARCHAR(10) DEFAULT '0' CHECK (suspension_status IN ('0', '3', '7', 'perm')),
     
     -- Device IDs
     ssaid VARCHAR(200),
@@ -45,10 +38,6 @@ CREATE TABLE accounts (
     app_set_id VARCHAR(200),
     
     -- Flags
-    is_suspended BOOLEAN GENERATED ALWAYS AS (
-        suspension_0_days > 0 OR suspension_3_days > 0 OR 
-        suspension_7_days > 0 OR suspension_permanent
-    ) STORED,
     has_error BOOLEAN DEFAULT FALSE,
     
     -- Metadata
@@ -127,7 +116,7 @@ CREATE INDEX idx_accounts_name ON accounts(name);
 CREATE INDEX idx_accounts_user_id ON accounts(user_id);
 CREATE INDEX idx_accounts_status ON accounts(account_status);
 CREATE INDEX idx_accounts_deleted ON accounts(deleted_at) WHERE deleted_at IS NULL;
-CREATE INDEX idx_accounts_suspended ON accounts(is_suspended);
+CREATE INDEX idx_accounts_suspension_status ON accounts(suspension_status);
 CREATE INDEX idx_accounts_device_token ON accounts(device_token);
 CREATE INDEX idx_accounts_app_set_id ON accounts(app_set_id);
 
@@ -177,7 +166,7 @@ CREATE TRIGGER update_teams_updated_at BEFORE UPDATE ON teams
 -- View: Active accounts (not deleted, not suspended)
 CREATE OR REPLACE VIEW active_accounts AS
 SELECT * FROM accounts 
-WHERE deleted_at IS NULL AND NOT is_suspended
+WHERE deleted_at IS NULL AND suspension_status = '0'
 ORDER BY name;
 
 -- View: Teams with account names
@@ -280,7 +269,35 @@ CREATE TABLE IF NOT EXISTS schema_version (
 );
 
 INSERT INTO schema_version (version, description) VALUES
-(1, 'Initial schema with accounts, events, customers, and teams');
+(1, 'Initial schema with accounts, events, customers, and teams'),
+(2, 'Simplified suspension tracking - single status field instead of 4 counters');
+
+-- ============================================================================
+-- MIGRATION NOTES
+-- ============================================================================
+
+-- Migration from version 1 to version 2:
+-- If you have existing data with old suspension fields, run this migration:
+/*
+ALTER TABLE accounts DROP COLUMN IF EXISTS suspension_0_days CASCADE;
+ALTER TABLE accounts DROP COLUMN IF EXISTS suspension_3_days CASCADE;
+ALTER TABLE accounts DROP COLUMN IF EXISTS suspension_7_days CASCADE;
+ALTER TABLE accounts DROP COLUMN IF EXISTS suspension_permanent CASCADE;
+ALTER TABLE accounts DROP COLUMN IF EXISTS suspension_count CASCADE;
+ALTER TABLE accounts DROP COLUMN IF EXISTS is_suspended CASCADE;
+
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS suspension_status VARCHAR(10) DEFAULT '0';
+ALTER TABLE accounts ADD CONSTRAINT check_suspension_status 
+    CHECK (suspension_status IN ('0', '3', '7', 'perm'));
+CREATE INDEX IF NOT EXISTS idx_accounts_suspension_status ON accounts(suspension_status);
+UPDATE accounts SET suspension_status = '0' WHERE suspension_status IS NULL;
+
+-- Recreate active_accounts view
+CREATE OR REPLACE VIEW active_accounts AS
+SELECT * FROM accounts 
+WHERE deleted_at IS NULL AND suspension_status = '0'
+ORDER BY name;
+*/
 
 -- ============================================================================
 -- COMPLETION
