@@ -24,7 +24,6 @@ import de.babixgo.monopolygo.models.Account;
 import de.babixgo.monopolygo.models.Event;
 import de.babixgo.monopolygo.models.Team;
 import de.babixgo.monopolygo.models.Customer;
-import de.babixgo.monopolygo.utils.EventExecutor;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -36,7 +35,7 @@ public class EventDetailActivity extends AppCompatActivity {
     private CustomerRepository customerRepository;
     
     private TextView tvEventTitle;
-    private Button btnAddTeam, btnAddCustomer, btnExecuteEvent;
+    private Button btnAddTeam, btnAddCustomer;
     private RecyclerView rvTeams;
     private TeamListAdapter adapter;
     
@@ -57,12 +56,10 @@ public class EventDetailActivity extends AppCompatActivity {
         tvEventTitle = findViewById(R.id.tv_event_title);
         btnAddTeam = findViewById(R.id.btn_add_team);
         btnAddCustomer = findViewById(R.id.btn_add_customer);
-        btnExecuteEvent = findViewById(R.id.btn_execute_event);
         rvTeams = findViewById(R.id.rv_teams);
         
         btnAddTeam.setOnClickListener(v -> showAddTeamDialog());
         btnAddCustomer.setOnClickListener(v -> showAddCustomerDialog());
-        btnExecuteEvent.setOnClickListener(v -> showExecuteConfirmation());
         
         setupRecyclerView();
     }
@@ -410,73 +407,6 @@ public class EventDetailActivity extends AppCompatActivity {
                 });
                 return null;
             });
-    }
-    
-    private void showExecuteConfirmation() {
-        new AlertDialog.Builder(this)
-            .setTitle("Event ausführen")
-            .setMessage("Möchten Sie das Event automatisch ausführen?\n\n" +
-                       "Die App wird nacheinander:\n" +
-                       "1. Jeden Account wiederherstellen\n" +
-                       "2. MonopolyGo starten\n" +
-                       "3. Freundschaftslinks öffnen\n\n" +
-                       "Dies kann mehrere Minuten dauern.")
-            .setPositiveButton("Ja, starten", (dialog, which) -> executeEvent())
-            .setNegativeButton("Abbrechen", null)
-            .show();
-    }
-    
-    private void executeEvent() {
-        // Show progress dialog
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Event wird ausgeführt...");
-        builder.setCancelable(false);
-        
-        TextView messageView = new TextView(this);
-        messageView.setPadding(24, 24, 24, 24);
-        messageView.setTextSize(14);
-        builder.setView(messageView);
-        
-        AlertDialog progressDialog = builder.create();
-        progressDialog.show();
-        
-        EventExecutor executor = new EventExecutor(this, new EventExecutor.ExecutionListener() {
-            @Override
-            public void onStepComplete(String message) {
-                runOnUiThread(() -> {
-                    messageView.setText(messageView.getText() + "\n" + message);
-                });
-            }
-            
-            @Override
-            public void onTeamComplete(Team team) {
-                runOnUiThread(() -> {
-                    messageView.setText(messageView.getText() + "\n\n✓ Team " + team.getName() + " abgeschlossen\n");
-                });
-            }
-            
-            @Override
-            public void onExecutionComplete() {
-                runOnUiThread(() -> {
-                    progressDialog.dismiss();
-                    Toast.makeText(EventDetailActivity.this, 
-                        "Event vollständig ausgeführt!", 
-                        Toast.LENGTH_LONG).show();
-                });
-            }
-            
-            @Override
-            public void onError(String error) {
-                runOnUiThread(() -> {
-                    messageView.setText(messageView.getText() + "\n❌ FEHLER: " + error);
-                    Toast.makeText(EventDetailActivity.this, 
-                        "Fehler: " + error, 
-                        Toast.LENGTH_LONG).show();
-                });
-            }
-        });
-        
-        executor.executeEvent(event.getId());
     }
     
     @Override

@@ -1,5 +1,9 @@
 # Tycoon Racers Event Management - Teil 5 Implementation Summary
 
+⚠️ **DEPRECATED: Die automatisierte Event-Ausführung wurde entfernt.**
+
+> **Note:** This document describes the original implementation of Teil 5. The automated event execution functionality (EventExecutor, executeEvent method, and "Event ausführen" button) has been removed from the codebase. Manual event management features remain fully functional.
+
 ## Overview
 This document summarizes the implementation of Teil 5: Team Management & Event Execution for the Tycoon Racers event system.
 
@@ -33,11 +37,16 @@ This document summarizes the implementation of Teil 5: Team Management & Event E
 - **setupAccountSpinner()**: Configures individual account spinner
 - **saveTeam()**: Updates team in database and refreshes view
 
-#### Event Execution
-- **showExecuteConfirmation()**: Shows dialog before execution
-- **executeEvent()**: Launches EventExecutor with progress tracking
+#### Event Execution (DEPRECATED - REMOVED)
 
-### 3. EventExecutor Utility Class
+⚠️ **This section describes functionality that has been removed from the codebase.**
+
+- **showExecuteConfirmation()**: ~~Shows dialog before execution~~ (REMOVED)
+- **executeEvent()**: ~~Launches EventExecutor with progress tracking~~ (REMOVED)
+
+### 3. EventExecutor Utility Class (DEPRECATED - REMOVED)
+
+⚠️ **This class has been completely removed from the codebase.**
 
 #### Features
 - Sequential team processing to avoid account conflicts
@@ -69,7 +78,7 @@ void onError(String error);
 ### 4. UI Updates
 
 #### activity_event_detail.xml
-- Added "Event ausführen" button with play icon
+- ~~Added "Event ausführen" button with play icon~~ (REMOVED)
 - Updated table header to show all 4 account columns (Acc 1-4)
 
 #### item_team.xml
@@ -116,7 +125,9 @@ void onError(String error);
 4. Save updates team in database
 5. Team list refreshes automatically
 
-### Event Execution
+### Event Execution (DEPRECATED - REMOVED)
+
+⚠️ **This functionality has been removed from the application.**
 1. User clicks "Event ausführen" button
 2. Confirmation dialog shows execution plan
 3. User confirms to start
@@ -130,7 +141,9 @@ void onError(String error);
 
 ## Integration with AccountManager
 
-The EventExecutor uses existing AccountManager methods:
+⚠️ **Note:** The EventExecutor class that used these methods has been removed.
+
+The removed EventExecutor previously used existing AccountManager methods:
 - `forceStopApp()`: Stops MonopolyGo
 - `restoreAccount(sourceFile)`: Restores account data
 - `startApp()`: Launches MonopolyGo
@@ -153,7 +166,7 @@ The EventExecutor uses existing AccountManager methods:
 ## Files Changed
 
 **New Files:**
-- `app/src/main/java/de/babixgo/monopolygo/utils/EventExecutor.java` (157 lines)
+- ~~`app/src/main/java/de/babixgo/monopolygo/utils/EventExecutor.java` (157 lines)~~ (REMOVED)
 - `app/src/main/res/layout/dialog_edit_team.xml` (133 lines)
 
 **Modified Files:**
@@ -176,20 +189,23 @@ The EventExecutor uses existing AccountManager methods:
 - [ ] Cancel button closes without saving
 - [ ] Team list refreshes after save
 
-### Event Execution
-- [ ] Confirmation dialog shows before execution
-- [ ] Progress dialog displays live updates
-- [ ] Accounts are restored correctly
-- [ ] MonopolyGo launches successfully
-- [ ] Friend links open correctly
-- [ ] Teams process sequentially
-- [ ] Errors are handled gracefully
-- [ ] Completion message shows at end
+### Event Execution (DEPRECATED - REMOVED)
+
+⚠️ **This functionality has been removed from the application.**
+
+~~- [ ] Confirmation dialog shows before execution~~
+~~- [ ] Progress dialog displays live updates~~
+~~- [ ] Accounts are restored correctly~~
+~~- [ ] MonopolyGo launches successfully~~
+~~- [ ] Friend links open correctly~~
+~~- [ ] Teams process sequentially~~
+~~- [ ] Errors are handled gracefully~~
+~~- [ ] Completion message shows at end~~
 
 ### UI Display
 - [ ] All 4 slots visible in team list
 - [ ] Table header shows Acc 1-4
-- [ ] Execute button visible and clickable
+- ~~[ ] Execute button visible and clickable~~ (REMOVED)
 - [ ] Slot names display correctly
 - [ ] Empty slots show "---"
 
@@ -212,9 +228,9 @@ As mentioned in the requirements, Teil 6 will include:
 
 Teil 5 successfully implements:
 - ✅ Complete team edit dialog with customer and account assignment
-- ✅ Automated event execution with sequential team processing
-- ✅ Real-time progress tracking and error handling
+- ❌ ~~Automated event execution with sequential team processing~~ (REMOVED)
+- ❌ ~~Real-time progress tracking and error handling~~ (REMOVED)
 - ✅ Full UI integration with existing event management system
 - ✅ All 4 account slots now visible and editable
 
-The implementation provides a complete workflow from event creation through team configuration to automated execution, making the Tycoon Racers event management fully functional.
+The implementation provides a complete workflow for event creation and team configuration with manual management capabilities. The automated execution feature has been removed.

@@ -145,48 +145,6 @@
 
 ---
 
-### Event Execution Tests
-
-#### Automated Execution
-- [ ] **Event Executor startet**
-  - "Event ausführen" Button startet Execution
-  - Confirmation-Dialog erscheint
-  - User kann bestätigen oder abbrechen
-
-- [ ] **Accounts werden sequenziell wiederhergestellt**
-  - Erster Account wird restored
-  - Zweiter Account wird restored (nach 1. abgeschlossen)
-  - Keine parallele Execution
-
-- [ ] **MonopolyGo wird gestartet**
-  - App wird via Intent gestartet
-  - App läuft im Vordergrund
-  - 10 Sekunden Wait-Time
-
-- [ ] **Freundschaftslinks werden geöffnet**
-  - Friend Link öffnet in MonopolyGo
-  - UserID ist korrekt
-  - 2 Sekunden Wait-Time
-
-- [ ] **Progress wird live angezeigt**
-  - Progress-Dialog zeigt aktuelle Steps
-  - "Account wiederherstellen: {Name}"
-  - "MonopolyGo gestartet - warte 10 Sekunden..."
-  - "Öffne Freundschaftslink für Kunde: {Name}"
-  - "Slot X abgeschlossen"
-
-- [ ] **Fehler werden abgefangen**
-  - Bei Fehler: Fehlermeldung erscheint
-  - Execution continues mit nächstem Team
-  - Fehler-Log wird angezeigt
-
-- [ ] **Completion-Meldung erscheint**
-  - "Event vollständig ausgeführt!" Toast
-  - Progress-Dialog schließt sich
-  - User kehrt zu Event Detail zurück
-
----
-
 ### Multi-Device Sync Tests
 
 - [ ] **Account auf Gerät 1 erstellt**
@@ -327,23 +285,6 @@ adb shell am start -n de.babixgo.monopolygo/.MainActivity
 # 5. Check AccountList → Account sollte erscheinen
 ```
 
-### 3. Event Execution Test
-
-```bash
-# Prerequisites:
-# - Mindestens 1 Event erstellt
-# - Mindestens 1 Team mit Kunde und 2+ Accounts
-
-# In babixGO:
-# 1. Event List → Click Event
-# 2. Event Detail → "Event ausführen"
-# 3. Confirmation → "Ja, starten"
-# 4. Warte und beobachte Progress
-# 5. Verify: MonopolyGo öffnet sich pro Account
-# 6. Verify: Friend Links werden geöffnet
-# 7. Wait for Completion Toast
-```
-
 ---
 
 ## 📊 ACCEPTANCE CRITERIA
@@ -353,7 +294,7 @@ adb shell am start -n de.babixgo.monopolygo/.MainActivity
 - ✅ Accounts erscheinen in List
 - ✅ Events können erstellt werden
 - ✅ Teams können erstellt und editiert werden
-- ✅ Event Execution funktioniert
+- ~~✅ Event Execution funktioniert~~ (REMOVED)
 - ✅ Multi-Device Sync funktioniert
 
 ### Should Have
