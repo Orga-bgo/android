@@ -172,18 +172,15 @@ public class EventDetailActivity extends AppCompatActivity {
     }
     
     private void createCustomer(String name, String friendLink, String friendCode) {
-        Customer customer = new Customer(name, friendLink, 4); // Default 4 slots
-        customer.setFriendCode(friendCode);
+        // Create customer with just name (new structure)
+        Customer customer = new Customer(name);
         
-        // Extract UserID from link
-        String userId = extractUserIdFromLink(friendLink);
-        if (userId != null) {
-            customer.setUserId(userId);
-        }
+        // Note: In the new structure, friend_link and friend_code belong to CustomerAccount
+        // For now, we'll create a simple customer. To add friend links, create a CustomerAccount separately.
         
         customerRepository.createCustomer(customer)
             .thenAccept(created -> runOnUiThread(() -> {
-                Toast.makeText(this, "Kunde erstellt", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Kunde erstellt: " + created.getName(), Toast.LENGTH_SHORT).show();
             }))
             .exceptionally(throwable -> {
                 runOnUiThread(() -> {
