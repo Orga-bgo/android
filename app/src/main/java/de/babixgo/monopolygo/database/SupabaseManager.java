@@ -7,7 +7,6 @@ import okhttp3.Response;
 import okhttp3.MediaType;
 import okhttp3.RequestBody;
 import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import java.io.IOException;
 import java.lang.reflect.Type;
@@ -40,10 +39,9 @@ public class SupabaseManager {
             .writeTimeout(30, TimeUnit.SECONDS)
             .build();
         
-        // Configure Gson to exclude null values when serializing
-        // This prevents overwriting database fields when doing partial updates
-        this.gson = new GsonBuilder()
-            .create();
+        // Using default Gson behavior which excludes null values from serialization
+        // This is critical for partial updates - only non-null fields will be sent to database
+        this.gson = new Gson();
     }
     
     /**
