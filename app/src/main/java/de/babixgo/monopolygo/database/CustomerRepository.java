@@ -43,7 +43,7 @@ public class CustomerRepository {
             try {
                 return supabase.selectSingle("customers", Customer.class, "id=eq." + id);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to load customer", e);
+                throw new RuntimeException("Failed to load customer: " + e.getMessage(), e);
             }
         });
     }
@@ -60,7 +60,7 @@ public class CustomerRepository {
                 
                 return supabase.insert("customers", customer, Customer.class);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to create customer", e);
+                throw new RuntimeException("Failed to create customer: " + e.getMessage(), e);
             }
         });
     }
@@ -75,20 +75,20 @@ public class CustomerRepository {
                 
                 return supabase.update("customers", customer, "id=eq." + customer.getId(), Customer.class);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to update customer", e);
+                throw new RuntimeException("Failed to update customer: " + e.getMessage(), e);
             }
         });
     }
     
     /**
-     * Delete customer
+     * Delete customer (CASCADE will delete associated customer_accounts)
      */
     public CompletableFuture<Void> deleteCustomer(long id) {
         return CompletableFuture.runAsync(() -> {
             try {
                 supabase.delete("customers", "id=eq." + id);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to delete customer", e);
+                throw new RuntimeException("Failed to delete customer: " + e.getMessage(), e);
             }
         });
     }

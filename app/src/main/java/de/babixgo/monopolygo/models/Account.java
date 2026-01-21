@@ -52,6 +52,13 @@ public class Account {
     @SerializedName("has_error")
     private Boolean hasError;
     
+    // Customer Account Link
+    @SerializedName("is_customer_account")
+    private Boolean isCustomerAccount;
+    
+    @SerializedName("customer_account_id")
+    private Long customerAccountId;
+    
     @SerializedName("note")
     private String note;
     
@@ -129,6 +136,12 @@ public class Account {
     
     public boolean isHasError() { return hasError != null ? hasError : false; }
     public void setHasError(boolean hasError) { this.hasError = hasError; }
+    
+    public boolean isCustomerAccount() { return isCustomerAccount != null ? isCustomerAccount : false; }
+    public void setCustomerAccount(boolean customerAccount) { this.isCustomerAccount = customerAccount; }
+    
+    public Long getCustomerAccountId() { return customerAccountId; }
+    public void setCustomerAccountId(Long customerAccountId) { this.customerAccountId = customerAccountId; }
     
     public String getNote() { return note; }
     public void setNote(String note) { this.note = note; }
