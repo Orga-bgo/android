@@ -68,6 +68,12 @@ public class AccountListFragment extends Fragment {
     }
     
     private void loadAccounts() {
+        // Check if Supabase is configured first
+        if (!repository.isSupabaseConfigured()) {
+            showSupabaseNotConfiguredDialog();
+            return;
+        }
+        
         repository.getAllAccounts()
             .thenAccept(accounts -> {
                 if (getActivity() != null) {
@@ -80,9 +86,16 @@ public class AccountListFragment extends Fragment {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
                         Log.e(TAG, "Failed to load accounts", throwable);
-                        Toast.makeText(requireContext(), 
-                            "Fehler beim Laden: " + throwable.getMessage(), 
-                            Toast.LENGTH_LONG).show();
+                        
+                        // Check if it's a configuration error
+                        String errorMsg = throwable.getMessage();
+                        if (errorMsg != null && errorMsg.contains("nicht konfiguriert")) {
+                            showSupabaseNotConfiguredDialog();
+                        } else {
+                            Toast.makeText(requireContext(), 
+                                "Fehler beim Laden: " + errorMsg, 
+                                Toast.LENGTH_LONG).show();
+                        }
                     });
                 }
                 return null;
@@ -198,6 +211,19 @@ public class AccountListFragment extends Fragment {
             .show();
     }
     
+    private void showSupabaseNotConfiguredDialog() {
+        new AlertDialog.Builder(requireContext())
+            .setTitle("Supabase nicht konfiguriert")
+            .setMessage("Die Datenbank-Verbindung ist nicht eingerichtet.\n\n" +
+                       "Um die App vollständig nutzen zu können, müssen Supabase-Zugangsdaten " +
+                       "in der Datei gradle.properties hinzugefügt werden.\n\n" +
+                       "Weitere Informationen findest du in SUPABASE_SETUP.md\n\n" +
+                       "Du kannst die App trotzdem nutzen, aber Accounts werden nur lokal gespeichert.")
+            .setPositiveButton("OK", null)
+            .setIcon(android.R.drawable.ic_dialog_alert)
+            .show();
+    }
+    
     private void backupAccount(String accountName, String note) {
         new Thread(() -> {
             try {
@@ -240,7 +266,18 @@ public class AccountListFragment extends Fragment {
                             account.setFriendLink("monopolygo://add-friend/" + userId);
                         }
                         
-                        // 5. Save to Supabase
+                        // 5. Save to Supabase (if configured)
+                        if (!repository.isSupabaseConfigured()) {
+                            if (getActivity() != null) {
+                                getActivity().runOnUiThread(() -> {
+                                    Toast.makeText(requireContext(), 
+                                        "✅ Account lokal gesichert\n⚠️ Supabase nicht konfiguriert - keine Cloud-Synchronisation", 
+                                        Toast.LENGTH_LONG).show();
+                                });
+                            }
+                            return;
+                        }
+                        
                         repository.createAccount(account)
                             .thenRun(() -> {
                                 if (getActivity() != null) {
@@ -256,9 +293,16 @@ public class AccountListFragment extends Fragment {
                                 Log.e(TAG, "Supabase save failed", e);
                                 if (getActivity() != null) {
                                     getActivity().runOnUiThread(() -> {
-                                        Toast.makeText(requireContext(), 
-                                            "⚠️ Supabase-Fehler: " + e.getMessage(), 
-                                            Toast.LENGTH_LONG).show();
+                                        String errorMsg = e.getMessage();
+                                        if (errorMsg != null && errorMsg.contains("nicht konfiguriert")) {
+                                            Toast.makeText(requireContext(), 
+                                                "✅ Account lokal gesichert\n⚠️ Supabase nicht konfiguriert", 
+                                                Toast.LENGTH_LONG).show();
+                                        } else {
+                                            Toast.makeText(requireContext(), 
+                                                "⚠️ Supabase-Fehler: " + errorMsg, 
+                                                Toast.LENGTH_LONG).show();
+                                        }
                                     });
                                 }
                                 return null;
