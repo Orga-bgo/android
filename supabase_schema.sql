@@ -157,6 +157,15 @@ CREATE TABLE teams (
 -- ============================================================================
 -- FOREIGN KEY CONSTRAINTS (Added after table creation)
 -- ============================================================================
+-- 
+-- This section contains ALTER TABLE statements to add foreign key constraints
+-- that would otherwise create forward references (referencing tables that don't
+-- exist yet at the time of table creation).
+--
+-- Specifically, accounts.customer_account_id references customer_accounts(id),
+-- but customer_accounts is created AFTER accounts table, so we add the constraint
+-- here using ALTER TABLE to avoid "relation does not exist" errors in PostgreSQL.
+-- ============================================================================
 
 -- Add foreign key from accounts to customer_accounts
 -- This must be done after customer_accounts table is created to avoid forward reference
@@ -342,7 +351,8 @@ CREATE TABLE IF NOT EXISTS schema_version (
 INSERT INTO schema_version (version, description) VALUES
 (1, 'Initial schema with accounts, events, customers, and teams'),
 (2, 'Simplified suspension tracking - single status field instead of 4 counters'),
-(3, 'Customer management restructure - multi-account support with services');
+(3, 'Customer management restructure - multi-account support with services'),
+(4, 'Fixed forward reference error - customer_account_id constraint moved to ALTER TABLE');
 
 -- ============================================================================
 -- MIGRATION NOTES
@@ -369,6 +379,24 @@ CREATE OR REPLACE VIEW active_accounts AS
 SELECT * FROM accounts 
 WHERE deleted_at IS NULL AND suspension_status = '0'
 ORDER BY name;
+*/
+
+-- Migration from version 3 to version 4:
+-- Fix for forward reference error in accounts.customer_account_id
+-- If you deployed version 3 and it failed due to forward reference, this fixes it:
+/*
+-- Drop the constraint if it was partially created
+ALTER TABLE accounts DROP CONSTRAINT IF EXISTS accounts_customer_account_id_fkey;
+
+-- Ensure the column exists (it should already be there)
+ALTER TABLE accounts ADD COLUMN IF NOT EXISTS customer_account_id BIGINT;
+
+-- Add the foreign key constraint properly
+ALTER TABLE accounts
+    ADD CONSTRAINT fk_accounts_customer_account_id
+    FOREIGN KEY (customer_account_id)
+    REFERENCES customer_accounts(id)
+    ON DELETE SET NULL;
 */
 
 -- ============================================================================
