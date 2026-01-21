@@ -330,8 +330,12 @@ INSERT INTO events (name, start_date, end_date, status) VALUES
 ('TR-001', '2024-02-01', '2024-02-05', 'planned');
 
 -- Sample customer
-INSERT INTO customers (name, friend_link, user_id, slots) VALUES
-('Test Customer', 'https://mply.gg/add-friend/123456789', '123456789', 4);
+INSERT INTO customers (name, notes) VALUES
+('Test Customer', 'Sample customer for testing');
+
+-- Sample customer account
+INSERT INTO customer_accounts (customer_id, ingame_name, friend_code, service_partner, partner_count) VALUES
+(1, 'TestPlayerName', 'FRIEND123', true, 4);
 
 -- Sample team
 INSERT INTO teams (event_id, name, customer_id, slot_1_account_id) VALUES
