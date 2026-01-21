@@ -169,21 +169,18 @@ public class AccountRepository {
     }
     
     /**
-     * Suspension Counts aktualisieren
+     * Suspension Status aktualisieren
      */
-    public CompletableFuture<Void> updateSuspensionCounts(long id, int days0, int days3, int days7, boolean permanent) {
+    public CompletableFuture<Void> updateSuspensionStatus(long id, String status) {
         return CompletableFuture.runAsync(() -> {
             try {
                 Account account = new Account();
-                account.setSuspension0Days(days0);
-                account.setSuspension3Days(days3);
-                account.setSuspension7Days(days7);
-                account.setSuspensionPermanent(permanent);
+                account.setSuspensionStatus(status);
                 account.setUpdatedAt(getCurrentTimestamp());
                 
                 supabase.update("accounts", account, "id=eq." + id, Account.class);
             } catch (IOException e) {
-                throw new RuntimeException("Failed to update suspension counts", e);
+                throw new RuntimeException("Failed to update suspension status", e);
             }
         });
     }

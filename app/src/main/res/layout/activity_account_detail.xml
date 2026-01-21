@@ -176,7 +176,7 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Suspendiert"
+                        android:text="Suspension"
                         android:textSize="12sp"
                         android:textColor="@color/text_gray" />
                     
@@ -184,7 +184,7 @@
                         android:id="@+id/tv_suspension_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0 3 7 X"
+                        android:text="0"
                         android:textSize="16sp"
                         android:textColor="@color/text_dark"
                         android:textStyle="bold"

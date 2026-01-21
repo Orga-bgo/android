@@ -3,6 +3,8 @@ package de.babixgo.monopolygo.activities;
 
 import android.os.Bundle;
 import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -10,6 +12,7 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import de.babixgo.monopolygo.AccountManager;
 import de.babixgo.monopolygo.R;
@@ -95,7 +98,7 @@ public class AccountDetailActivity extends AppCompatActivity {
         tvShortLink.setText(account.getShortLink() != null ? account.getShortLink() : "Nicht verfügbar");
         tvFriendCode.setText(account.getFriendCode() != null ? account.getFriendCode() : "---");
         
-        tvSuspensionStatus.setText(account.getSuspensionSummary());
+        tvSuspensionStatus.setText(account.getSuspensionDisplayText());
         tvErrorStatus.setText(account.getErrorStatusText());
         tvErrorStatus.setTextColor(ContextCompat.getColor(this,
             account.isHasError() ? R.color.error_red : R.color.text_dark));
@@ -155,23 +158,31 @@ public class AccountDetailActivity extends AppCompatActivity {
         TextInputEditText etName = dialogView.findViewById(R.id.et_name);
         TextInputEditText etUserId = dialogView.findViewById(R.id.et_user_id);
         TextInputEditText etFriendCode = dialogView.findViewById(R.id.et_friend_code);
-        TextInputEditText etSuspension0 = dialogView.findViewById(R.id.et_suspension_0);
-        TextInputEditText etSuspension3 = dialogView.findViewById(R.id.et_suspension_3);
-        TextInputEditText etSuspension7 = dialogView.findViewById(R.id.et_suspension_7);
-        SwitchMaterial switchPermanent = dialogView.findViewById(R.id.switch_suspension_permanent);
+        AutoCompleteTextView actSuspensionStatus = dialogView.findViewById(R.id.act_suspension_status);
         SwitchMaterial switchError = dialogView.findViewById(R.id.switch_has_error);
         TextInputEditText etNote = dialogView.findViewById(R.id.et_note);
         Button btnCancel = dialogView.findViewById(R.id.btn_cancel);
         Button btnSave = dialogView.findViewById(R.id.btn_save);
         
+        // Setup suspension status dropdown
+        String[] suspensionOptions = {
+            "Keine",
+            "3 Tage",
+            "7 Tage",
+            "Permanent"
+        };
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+            this, 
+            android.R.layout.simple_dropdown_item_1line, 
+            suspensionOptions
+        );
+        actSuspensionStatus.setAdapter(adapter);
+        
         // Populate with current values
         etName.setText(account.getName());
         etUserId.setText(account.getUserId());
         etFriendCode.setText(account.getFriendCode());
-        etSuspension0.setText(String.valueOf(account.getSuspension0Days()));
-        etSuspension3.setText(String.valueOf(account.getSuspension3Days()));
-        etSuspension7.setText(String.valueOf(account.getSuspension7Days()));
-        switchPermanent.setChecked(account.isSuspensionPermanent());
+        actSuspensionStatus.setText(account.getSuspensionDisplayText(), false);
         switchError.setChecked(account.isHasError());
         etNote.setText(account.getNote());
         
@@ -189,25 +200,21 @@ public class AccountDetailActivity extends AppCompatActivity {
             account.setUserId(etUserId.getText().toString().trim());
             account.setFriendCode(etFriendCode.getText().toString().trim());
             
-            try {
-                account.setSuspension0Days(Integer.parseInt(etSuspension0.getText().toString()));
-            } catch (Exception e) {
-                account.setSuspension0Days(0);
+            // Map display text back to status value
+            String displayText = actSuspensionStatus.getText().toString();
+            String statusValue = "0"; // Default
+            switch (displayText) {
+                case "Keine": statusValue = "0"; break;
+                case "3 Tage": statusValue = "3"; break;
+                case "7 Tage": statusValue = "7"; break;
+                case "Permanent": statusValue = "perm"; break;
+                default:
+                    // If unrecognized value, keep current status or default to "0"
+                    statusValue = account.getSuspensionStatus();
+                    break;
             }
+            account.setSuspensionStatus(statusValue);
             
-            try {
-                account.setSuspension3Days(Integer.parseInt(etSuspension3.getText().toString()));
-            } catch (Exception e) {
-                account.setSuspension3Days(0);
-            }
-            
-            try {
-                account.setSuspension7Days(Integer.parseInt(etSuspension7.getText().toString()));
-            } catch (Exception e) {
-                account.setSuspension7Days(0);
-            }
-            
-            account.setSuspensionPermanent(switchPermanent.isChecked());
             account.setHasError(switchError.isChecked());
             account.setNote(etNote.getText().toString().trim());
             

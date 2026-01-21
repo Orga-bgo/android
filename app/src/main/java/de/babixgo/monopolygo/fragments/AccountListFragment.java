@@ -186,6 +186,7 @@ public class AccountListFragment extends Fragment {
                 account.setSsaid(ssaid);
                 account.setNote(note);
                 account.setAccountStatus("active");
+                account.setSuspensionStatus("0"); // Default: Keine Suspension
                 account.setLastPlayed(getCurrentTimestamp());
                 
                 // WICHTIG: KEIN Friend Link generieren!
