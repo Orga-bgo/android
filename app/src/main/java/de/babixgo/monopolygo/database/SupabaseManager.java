@@ -39,6 +39,8 @@ public class SupabaseManager {
             .writeTimeout(30, TimeUnit.SECONDS)
             .build();
         
+        // Using default Gson behavior which excludes null values from serialization
+        // This is critical for partial updates - only non-null fields will be sent to database
         this.gson = new Gson();
     }
     
