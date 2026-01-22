@@ -16,10 +16,12 @@ import java.util.Locale;
 public class CustomerRepository {
     private final SupabaseManager supabase;
     private final CustomerAccountRepository accountRepository;
+    private final CustomerActivityRepository activityRepository;
     
     public CustomerRepository() {
         this.supabase = SupabaseManager.getInstance();
         this.accountRepository = new CustomerAccountRepository();
+        this.activityRepository = new CustomerActivityRepository();
     }
     
     /**
@@ -95,7 +97,7 @@ public class CustomerRepository {
     }
     
     /**
-     * Create new customer
+     * Create new customer with activity logging
      */
     public CompletableFuture<Customer> createCustomer(Customer customer) {
         return CompletableFuture.supplyAsync(() -> {
@@ -105,7 +107,17 @@ public class CustomerRepository {
                 // Timestamps are set automatically by database triggers
                 // No need to set them manually
                 
-                return supabase.insert("customers", customer, Customer.class);
+                Customer created = supabase.insert("customers", customer, Customer.class);
+                
+                // Log activity
+                activityRepository.logActivity(
+                    created.getId(), 
+                    "create", 
+                    "customer", 
+                    "Kunde erstellt: " + created.getName()
+                );
+                
+                return created;
             } catch (IOException e) {
                 throw wrapIOException("Fehler beim Erstellen des Kunden", e);
             }
@@ -113,7 +125,7 @@ public class CustomerRepository {
     }
     
     /**
-     * Update customer
+     * Update customer with activity logging
      */
     public CompletableFuture<Customer> updateCustomer(Customer customer) {
         return CompletableFuture.supplyAsync(() -> {
@@ -122,7 +134,17 @@ public class CustomerRepository {
                 
                 // updated_at is set automatically by database trigger
                 
-                return supabase.update("customers", customer, "id=eq." + customer.getId(), Customer.class);
+                Customer updated = supabase.update("customers", customer, "id=eq." + customer.getId(), Customer.class);
+                
+                // Log activity
+                activityRepository.logActivity(
+                    updated.getId(), 
+                    "update", 
+                    "customer", 
+                    "Kundendaten aktualisiert: " + updated.getName()
+                );
+                
+                return updated;
             } catch (IOException e) {
                 throw wrapIOException("Fehler beim Aktualisieren des Kunden", e);
             }
@@ -130,12 +152,26 @@ public class CustomerRepository {
     }
     
     /**
-     * Delete customer (CASCADE will delete associated customer_accounts)
+     * Delete customer (CASCADE will delete associated customer_accounts) with activity logging
      */
     public CompletableFuture<Void> deleteCustomer(long id) {
         return CompletableFuture.runAsync(() -> {
             try {
                 ensureConfigured();
+                
+                // Get customer name before deleting for activity log
+                Customer customer = supabase.selectSingle("customers", Customer.class, "id=eq." + id);
+                String customerName = customer != null ? customer.getName() : "Unbekannt";
+                
+                // Log activity before deletion
+                activityRepository.logActivity(
+                    id, 
+                    "delete", 
+                    "customer", 
+                    "Kunde gelöscht: " + customerName
+                );
+                
+                // Delete customer (this will cascade delete activities too, but we've already logged the deletion)
                 supabase.delete("customers", "id=eq." + id);
             } catch (IOException e) {
                 throw wrapIOException("Fehler beim Löschen des Kunden", e);

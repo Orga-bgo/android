@@ -263,9 +263,6 @@ public class CustomerDetailActivity extends AppCompatActivity {
                     this.customer = updatedCustomer;
                     displayCustomerInfo();
                     Toast.makeText(this, "Kunde aktualisiert", Toast.LENGTH_SHORT).show();
-                    
-                    // Log activity
-                    logActivity("update", "customer", "Kundendaten aktualisiert: " + name);
                 });
             })
             .exceptionally(throwable -> {
@@ -294,25 +291,6 @@ public class CustomerDetailActivity extends AppCompatActivity {
         // Show account details or edit dialog
         Toast.makeText(this, "Account: " + account.getIngameName(), Toast.LENGTH_SHORT).show();
         // TODO: Implement account detail/edit dialog
-    }
-    
-    /**
-     * Log activity for this customer
-     */
-    private void logActivity(String activityType, String category, String description) {
-        CustomerActivity activity = new CustomerActivity(customerId, activityType, category, description);
-        
-        activityRepository.logActivity(activity)
-            .thenAccept(loggedActivity -> {
-                runOnUiThread(() -> {
-                    Log.d(TAG, "Activity logged: " + description);
-                    loadActivities(); // Reload activities
-                });
-            })
-            .exceptionally(throwable -> {
-                Log.e(TAG, "Failed to log activity", throwable);
-                return null;
-            });
     }
     
     @Override

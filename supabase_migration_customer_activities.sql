@@ -1,0 +1,60 @@
+-- ============================================================================
+-- MIGRATION: Add Customer Activities Table for Audit Trail
+-- Version: 5
+-- Description: Adds comprehensive activity tracking for customer management
+-- ============================================================================
+
+-- Create customer_activities table
+CREATE TABLE IF NOT EXISTS customer_activities (
+    id BIGSERIAL PRIMARY KEY,
+    customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    
+    -- Activity classification
+    activity_type VARCHAR(50) NOT NULL,
+    activity_category VARCHAR(50) NOT NULL,
+    
+    -- Activity details
+    description TEXT NOT NULL,
+    details TEXT,
+    
+    -- Related entities
+    customer_account_id BIGINT REFERENCES customer_accounts(id) ON DELETE SET NULL,
+    
+    -- Metadata
+    performed_by VARCHAR(100),
+    
+    -- Timestamp
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Add comments
+COMMENT ON TABLE customer_activities IS 'Audit trail and activity history for customers';
+COMMENT ON COLUMN customer_activities.activity_type IS 'Type of activity performed';
+COMMENT ON COLUMN customer_activities.activity_category IS 'Category of the activity (customer/account/service)';
+COMMENT ON COLUMN customer_activities.description IS 'Human-readable description of the activity';
+COMMENT ON COLUMN customer_activities.details IS 'Detailed information in JSON format (optional)';
+
+-- Create indexes
+CREATE INDEX IF NOT EXISTS idx_customer_activities_customer_id ON customer_activities(customer_id);
+CREATE INDEX IF NOT EXISTS idx_customer_activities_type ON customer_activities(activity_type);
+CREATE INDEX IF NOT EXISTS idx_customer_activities_category ON customer_activities(activity_category);
+CREATE INDEX IF NOT EXISTS idx_customer_activities_account_id ON customer_activities(customer_account_id);
+CREATE INDEX IF NOT EXISTS idx_customer_activities_created_at ON customer_activities(created_at DESC);
+
+-- Enable RLS
+ALTER TABLE customer_activities ENABLE ROW LEVEL SECURITY;
+
+-- Add policy
+CREATE POLICY "Allow all for authenticated users" ON customer_activities
+    FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
+
+-- Update schema version
+INSERT INTO schema_version (version, description) VALUES
+(5, 'Added customer_activities table for comprehensive audit trail and activity tracking')
+ON CONFLICT (version) DO UPDATE 
+SET description = EXCLUDED.description,
+    applied_at = NOW();
+
+-- ============================================================================
+-- MIGRATION COMPLETE
+-- ============================================================================

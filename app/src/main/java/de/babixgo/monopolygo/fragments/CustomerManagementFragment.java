@@ -18,7 +18,6 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import de.babixgo.monopolygo.R;
 import de.babixgo.monopolygo.activities.CustomerDetailActivity;
 import de.babixgo.monopolygo.adapters.CustomerListAdapter;
-import de.babixgo.monopolygo.database.CustomerActivityRepository;
 import de.babixgo.monopolygo.database.CustomerRepository;
 import de.babixgo.monopolygo.models.Customer;
 
@@ -33,7 +32,6 @@ public class CustomerManagementFragment extends Fragment {
     private RecyclerView rvCustomers;
     private CustomerListAdapter adapter;
     private CustomerRepository repository;
-    private CustomerActivityRepository activityRepository;
     private FloatingActionButton fabCreateCustomer;
     
     @Nullable
@@ -45,7 +43,6 @@ public class CustomerManagementFragment extends Fragment {
         
         // Initialize Repository
         repository = new CustomerRepository();
-        activityRepository = new CustomerActivityRepository();
         
         // Setup RecyclerView
         rvCustomers = view.findViewById(R.id.rv_customers);
@@ -135,11 +132,6 @@ public class CustomerManagementFragment extends Fragment {
                         Toast.makeText(requireContext(), 
                             "Kunde erstellt: " + createdCustomer.getName(), 
                             Toast.LENGTH_SHORT).show();
-                        
-                        // Log activity
-                        logActivity(createdCustomer.getId(), "create", "customer", 
-                            "Kunde erstellt: " + createdCustomer.getName());
-                        
                         loadCustomers(); // Reload list
                     });
                 }
@@ -164,17 +156,6 @@ public class CustomerManagementFragment extends Fragment {
         Intent intent = new Intent(requireContext(), CustomerDetailActivity.class);
         intent.putExtra(CustomerDetailActivity.EXTRA_CUSTOMER_ID, customer.getId());
         startActivity(intent);
-    }
-    
-    /**
-     * Log customer activity
-     */
-    private void logActivity(long customerId, String activityType, String category, String description) {
-        activityRepository.logActivity(customerId, activityType, category, description)
-            .exceptionally(throwable -> {
-                Log.e(TAG, "Failed to log activity", throwable);
-                return null;
-            });
     }
     
     @Override
