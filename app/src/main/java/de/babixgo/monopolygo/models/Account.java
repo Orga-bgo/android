@@ -212,9 +212,6 @@ public class Account {
             // Try parsing as Unix timestamp (milliseconds)
             try {
                 long timestamp = Long.parseLong(lastPlayed);
-                if (timestamp == 0) {
-                    return "Nie gespielt";
-                }
                 java.text.SimpleDateFormat outputFormat = 
                     new java.text.SimpleDateFormat("dd.MM.yyyy, HH:mm", java.util.Locale.GERMAN);
                 return outputFormat.format(new java.util.Date(timestamp));
