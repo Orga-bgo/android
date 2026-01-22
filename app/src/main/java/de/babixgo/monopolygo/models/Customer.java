@@ -27,7 +27,7 @@ public class Customer {
     private String updatedAt;
     
     // Transient - not in DB, will be populated when loaded
-    private List<CustomerAccount> accounts = new ArrayList<>();
+    private transient List<CustomerAccount> accounts = new ArrayList<>();
     
     // Constructors
     public Customer() {}
