@@ -50,6 +50,10 @@
             android:exported="false" />
         
         <activity
+            android:name=".activities.CustomerDetailActivity"
+            android:exported="false" />
+        
+        <activity
             android:name=".activities.EventDetailActivity"
             android:exported="false" />
         

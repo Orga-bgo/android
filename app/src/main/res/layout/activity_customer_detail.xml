@@ -202,6 +202,7 @@
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
         android:layout_marginBottom="80dp"
+        android:contentDescription="@string/edit_customer"
         android:src="@android:drawable/ic_menu_edit"
         app:backgroundTint="@color/primary_blue"
         app:tint="@android:color/white" />
@@ -212,6 +213,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|start"
         android:layout_margin="16dp"
+        android:contentDescription="@string/add_account"
         android:src="@android:drawable/ic_input_add"
         app:backgroundTint="@color/success_green"
         app:tint="@android:color/white" />

@@ -95,8 +95,8 @@ public class CustomerActivity {
     }
     
     /**
-     * Get icon resource ID based on activity type
-     * For UI display purposes
+     * Get activity icon as emoji string based on activity type
+     * For UI display purposes in text-based components
      */
     public String getActivityIcon() {
         switch (activityType) {

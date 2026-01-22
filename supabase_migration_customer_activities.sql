@@ -7,7 +7,7 @@
 -- Create customer_activities table
 CREATE TABLE IF NOT EXISTS customer_activities (
     id BIGSERIAL PRIMARY KEY,
-    customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+    customer_id BIGINT REFERENCES customers(id) ON DELETE SET NULL,
     
     -- Activity classification
     activity_type VARCHAR(50) NOT NULL,
@@ -44,6 +44,17 @@ CREATE INDEX IF NOT EXISTS idx_customer_activities_created_at ON customer_activi
 -- Enable RLS
 ALTER TABLE customer_activities ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (idempotent)
+DO $$ 
+BEGIN
+    DROP POLICY IF EXISTS "Allow authenticated read customer_activities" ON customer_activities;
+    DROP POLICY IF EXISTS "Allow authenticated insert customer_activities" ON customer_activities;
+    DROP POLICY IF EXISTS "Allow authenticated update customer_activities" ON customer_activities;
+    DROP POLICY IF EXISTS "Allow authenticated delete customer_activities" ON customer_activities;
+EXCEPTION
+    WHEN undefined_object THEN NULL;
+END $$;
+
 -- Add policies
 -- Allow authenticated users to read audit records
 CREATE POLICY "Allow authenticated read customer_activities" ON customer_activities
@@ -54,6 +65,18 @@ CREATE POLICY "Allow authenticated read customer_activities" ON customer_activit
 CREATE POLICY "Allow authenticated insert customer_activities" ON customer_activities
     FOR INSERT
     WITH CHECK (auth.role() = 'authenticated');
+
+-- Allow authenticated users to update audit records (restricted)
+CREATE POLICY "Allow authenticated update customer_activities" ON customer_activities
+    FOR UPDATE
+    USING (auth.role() = 'authenticated')
+    WITH CHECK (auth.role() = 'authenticated');
+
+-- Allow authenticated users to delete audit records (restricted)
+CREATE POLICY "Allow authenticated delete customer_activities" ON customer_activities
+    FOR DELETE
+    USING (auth.role() = 'authenticated');
+    
 -- Update schema version
 INSERT INTO schema_version (version, description) VALUES
 (5, 'Added customer_activities table for comprehensive audit trail and activity tracking')

@@ -55,6 +55,17 @@ public class CustomerActivityRepository {
     }
     
     /**
+     * Log activity with customer_account_id (convenience method)
+     */
+    public CompletableFuture<CustomerActivity> logActivity(long customerId, String activityType, 
+                                                            String activityCategory, String description,
+                                                            Long customerAccountId) {
+        CustomerActivity activity = new CustomerActivity(customerId, activityType, activityCategory, description);
+        activity.setCustomerAccountId(customerAccountId);
+        return logActivity(activity);
+    }
+    
+    /**
      * Get all activities for a specific customer (ordered by most recent)
      */
     public CompletableFuture<List<CustomerActivity>> getActivitiesByCustomerId(long customerId) {

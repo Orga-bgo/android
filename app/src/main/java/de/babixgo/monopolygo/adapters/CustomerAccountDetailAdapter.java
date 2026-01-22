@@ -15,7 +15,7 @@ import java.util.List;
  * Adapter for displaying customer accounts in detail view
  * Shows account name, services, and backup status
  */
-public class CustomerAccountDetailAdapter extends RecyclerView.Adapter<CustomerAccountDetailAdapter.ViewHolder> {
+public class CustomerAccountDetailAdapter extends RecyclerView.Adapter<CustomerAccountDetailAdapter.AccountViewHolder> {
     
     private List<CustomerAccount> accounts = new ArrayList<>();
     private OnAccountClickListener listener;
@@ -35,14 +35,14 @@ public class CustomerAccountDetailAdapter extends RecyclerView.Adapter<CustomerA
     
     @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public AccountViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
             .inflate(R.layout.item_customer_account_detail, parent, false);
-        return new ViewHolder(view);
+        return new AccountViewHolder(view);
     }
     
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull AccountViewHolder holder, int position) {
         CustomerAccount account = accounts.get(position);
         holder.bind(account);
     }
@@ -52,10 +52,10 @@ public class CustomerAccountDetailAdapter extends RecyclerView.Adapter<CustomerA
         return accounts.size();
     }
     
-    class ViewHolder extends RecyclerView.ViewHolder {
+    class AccountViewHolder extends RecyclerView.ViewHolder {
         TextView tvIngameName, tvFriendCode, tvServices, tvBackupStatus;
         
-        ViewHolder(View itemView) {
+        AccountViewHolder(View itemView) {
             super(itemView);
             tvIngameName = itemView.findViewById(R.id.tv_ingame_name);
             tvFriendCode = itemView.findViewById(R.id.tv_friend_code);

@@ -2,9 +2,7 @@ package de.babixgo.monopolygo.models;
 
 import com.google.gson.annotations.SerializedName;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Customer model for customer management
@@ -68,28 +66,35 @@ public class Customer {
     /**
      * Returns all services that this customer uses (across all accounts)
      * Format: "Partner / Race / Boost"
-     * Aggregates services from all accounts
+     * Aggregates services from all accounts in deterministic order
      */
     public String getServicesDisplay() {
         if (accounts == null || accounts.isEmpty()) {
             return "-";
         }
         
-        Set<String> uniqueServices = new HashSet<>();
+        boolean hasPartner = false;
+        boolean hasRace = false;
+        boolean hasBoost = false;
         
         for (CustomerAccount account : accounts) {
             if (account.isServicePartner()) {
-                uniqueServices.add("Partner");
+                hasPartner = true;
             }
             if (account.isServiceRace()) {
-                uniqueServices.add("Race");
+                hasRace = true;
             }
             if (account.isServiceBoost()) {
-                uniqueServices.add("Boost");
+                hasBoost = true;
             }
         }
         
-        return uniqueServices.isEmpty() ? "-" : String.join(" / ", uniqueServices);
+        List<String> services = new ArrayList<>();
+        if (hasPartner) services.add("Partner");
+        if (hasRace) services.add("Race");
+        if (hasBoost) services.add("Boost");
+        
+        return services.isEmpty() ? "-" : String.join(" / ", services);
     }
     
     /**

@@ -15,7 +15,7 @@ import java.util.List;
  * Adapter for displaying customer activity history
  * Shows activity type, description, category, and timestamp
  */
-public class CustomerActivityAdapter extends RecyclerView.Adapter<CustomerActivityAdapter.ViewHolder> {
+public class CustomerActivityAdapter extends RecyclerView.Adapter<CustomerActivityAdapter.ActivityViewHolder> {
     
     private List<CustomerActivity> activities = new ArrayList<>();
     
@@ -26,14 +26,14 @@ public class CustomerActivityAdapter extends RecyclerView.Adapter<CustomerActivi
     
     @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+    public ActivityViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(parent.getContext())
             .inflate(R.layout.item_customer_activity, parent, false);
-        return new ViewHolder(view);
+        return new ActivityViewHolder(view);
     }
     
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull ActivityViewHolder holder, int position) {
         CustomerActivity activity = activities.get(position);
         holder.bind(activity);
     }
@@ -43,10 +43,10 @@ public class CustomerActivityAdapter extends RecyclerView.Adapter<CustomerActivi
         return activities.size();
     }
     
-    static class ViewHolder extends RecyclerView.ViewHolder {
+    class ActivityViewHolder extends RecyclerView.ViewHolder {
         TextView tvIcon, tvDescription, tvCategory, tvTimestamp;
         
-        ViewHolder(View itemView) {
+        ActivityViewHolder(View itemView) {
             super(itemView);
             tvIcon = itemView.findViewById(R.id.tv_activity_icon);
             tvDescription = itemView.findViewById(R.id.tv_activity_description);

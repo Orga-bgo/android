@@ -34,4 +34,6 @@
     <string name="fab_backup_account">Account sichern</string>
     <string name="fab_create_event">Neues Event</string>
     <string name="fab_create_customer">Neuen Kunden anlegen</string>
+    <string name="edit_customer">Kunde bearbeiten</string>
+    <string name="add_account">Account hinzufügen</string>
 </resources>

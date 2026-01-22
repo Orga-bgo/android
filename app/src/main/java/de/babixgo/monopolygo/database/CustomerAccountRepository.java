@@ -64,17 +64,16 @@ public class CustomerAccountRepository {
                     created.setCredentialsPassword(decrypted);
                 }
                 
-                // Log activity
+                // Log activity with customer_account_id
                 getActivityRepository().logActivity(
                     created.getCustomerId(),
                     "account_add",
                     "account",
-                    "Account hinzugefügt: " + (created.getIngameName() != null ? created.getIngameName() : "Unbekannt")
-                ).thenAccept(activity -> {
-                    // Set customer_account_id in activity
-                    if (activity != null) {
-                        activity.setCustomerAccountId(created.getId());
-                    }
+                    "Account hinzugefügt: " + (created.getIngameName() != null ? created.getIngameName() : "Unbekannt"),
+                    created.getId()
+                ).exceptionally(e -> {
+                    Log.e(TAG, "Failed to log activity for account creation", e);
+                    return null;
                 });
                 
                 Log.d(TAG, "Customer account created with ID: " + created.getId());
@@ -172,16 +171,16 @@ public class CustomerAccountRepository {
                     json.toString()
                 );
                 
-                // Log activity
+                // Log activity with customer_account_id
                 getActivityRepository().logActivity(
                     account.getCustomerId(),
                     "account_update",
                     "account",
-                    "Account aktualisiert: " + (account.getIngameName() != null ? account.getIngameName() : "ID " + account.getId())
-                ).thenAccept(activity -> {
-                    if (activity != null) {
-                        activity.setCustomerAccountId(account.getId());
-                    }
+                    "Account aktualisiert: " + (account.getIngameName() != null ? account.getIngameName() : "ID " + account.getId()),
+                    account.getId()
+                ).exceptionally(e -> {
+                    Log.e(TAG, "Failed to log activity for account update", e);
+                    return null;
                 });
                 
                 Log.d(TAG, "Customer account updated successfully");
@@ -223,7 +222,7 @@ public class CustomerAccountRepository {
     /**
      * Delete customer account with activity logging
      */
-    public CompletableFuture<Void> deleteCustomerAccount(String id) {
+    public CompletableFuture<Void> deleteCustomerAccount(long id) {
         return CompletableFuture.runAsync(() -> {
             try {
                 Log.d(TAG, "Deleting customer account: " + id);
@@ -232,16 +231,16 @@ public class CustomerAccountRepository {
                 CustomerAccount account = supabase.selectSingle("customer_accounts", CustomerAccount.class, "id=eq." + id);
                 
                 if (account != null) {
-                    // Log activity before deletion
+                    // Log activity before deletion with customer_account_id
                     getActivityRepository().logActivity(
                         account.getCustomerId(),
                         "account_delete",
                         "account",
-                        "Account gelöscht: " + (account.getIngameName() != null ? account.getIngameName() : "ID " + id)
-                    ).thenAccept(activity -> {
-                        if (activity != null) {
-                            activity.setCustomerAccountId(Long.parseLong(id));
-                        }
+                        "Account gelöscht: " + (account.getIngameName() != null ? account.getIngameName() : "ID " + id),
+                        id
+                    ).exceptionally(e -> {
+                        Log.e(TAG, "Failed to log activity for account deletion", e);
+                        return null;
                     });
                 }
                 

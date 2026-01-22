@@ -1,5 +1,6 @@
 package de.babixgo.monopolygo.database;
 
+import android.util.Log;
 import de.babixgo.monopolygo.models.Customer;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -125,7 +126,11 @@ public class CustomerRepository {
                     "create", 
                     "customer", 
                     "Kunde erstellt: " + created.getName()
-                );
+                ).exceptionally(e -> {
+                    // Log error but don't fail the operation
+                    Log.e("CustomerRepository", "Failed to log customer creation activity", (Throwable) e);
+                    return null;
+                });
                 
                 return created;
             } catch (IOException e) {
@@ -152,7 +157,10 @@ public class CustomerRepository {
                     "update", 
                     "customer", 
                     "Kundendaten aktualisiert: " + updated.getName()
-                );
+                ).exceptionally(e -> {
+                    Log.e("CustomerRepository", "Failed to log customer update activity", (Throwable) e);
+                    return null;
+                });
                 
                 return updated;
             } catch (IOException e) {
@@ -162,7 +170,8 @@ public class CustomerRepository {
     }
     
     /**
-     * Delete customer (CASCADE will delete associated customer_accounts) with activity logging
+     * Delete customer (CASCADE will delete associated customer_accounts)
+     * Note: Activity log will be preserved as customer_id is nullable with ON DELETE SET NULL
      */
     public CompletableFuture<Void> deleteCustomer(long id) {
         return CompletableFuture.runAsync(() -> {
@@ -179,9 +188,12 @@ public class CustomerRepository {
                     "delete", 
                     "customer", 
                     "Kunde gelöscht: " + customerName
-                );
+                ).exceptionally(e -> {
+                    Log.e("CustomerRepository", "Failed to log customer deletion activity", (Throwable) e);
+                    return null;
+                });
                 
-                // Delete customer (this will cascade delete activities too, but we've already logged the deletion)
+                // Delete customer (activities will remain with customer_id = NULL due to ON DELETE SET NULL)
                 supabase.delete("customers", "id=eq." + id);
             } catch (IOException e) {
                 throw wrapIOException("Fehler beim Löschen des Kunden", e);

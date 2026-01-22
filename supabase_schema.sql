@@ -86,38 +86,6 @@ CREATE TABLE customers (
 );
 
 -- ============================================================================
--- CUSTOMER ACTIVITIES TABLE (Audit Trail & History Tracking)
--- ============================================================================
-
-CREATE TABLE customer_activities (
-    id BIGSERIAL PRIMARY KEY,
-    customer_id BIGINT NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
-    
-    -- Activity classification
-    activity_type VARCHAR(50) NOT NULL, -- 'create', 'update', 'delete', 'account_add', 'account_update', 'account_delete', 'service_change'
-    activity_category VARCHAR(50) NOT NULL, -- 'customer', 'account', 'service'
-    
-    -- Activity details
-    description TEXT NOT NULL, -- Human-readable description
-    details TEXT, -- JSON with detailed changes
-    
-    -- Related entities
-    customer_account_id BIGINT REFERENCES customer_accounts(id) ON DELETE SET NULL,
-    
-    -- Metadata
-    performed_by VARCHAR(100), -- Optional: user who performed the action
-    
-    -- Timestamp
-    created_at TIMESTAMP DEFAULT NOW()
-);
-
-COMMENT ON TABLE customer_activities IS 'Audit trail and activity history for customers';
-COMMENT ON COLUMN customer_activities.activity_type IS 'Type of activity performed';
-COMMENT ON COLUMN customer_activities.activity_category IS 'Category of the activity (customer/account/service)';
-COMMENT ON COLUMN customer_activities.description IS 'Human-readable description of the activity';
-COMMENT ON COLUMN customer_activities.details IS 'Detailed information in JSON format (optional)';
-
--- ============================================================================
 -- CUSTOMER ACCOUNTS TABLE
 -- ============================================================================
 
@@ -162,6 +130,38 @@ COMMENT ON COLUMN customer_accounts.credentials_password IS 'Verschlüsseltes Pa
 
 COMMENT ON COLUMN accounts.is_customer_account IS 'True = Account gehört zu Kunde und wird nicht in AccountListFragment angezeigt';
 COMMENT ON COLUMN accounts.customer_account_id IS 'Verknüpfung zu customer_accounts';
+
+-- ============================================================================
+-- CUSTOMER ACTIVITIES TABLE (Audit Trail & History Tracking)
+-- ============================================================================
+
+CREATE TABLE customer_activities (
+    id BIGSERIAL PRIMARY KEY,
+    customer_id BIGINT REFERENCES customers(id) ON DELETE SET NULL,
+    
+    -- Activity classification
+    activity_type VARCHAR(50) NOT NULL, -- 'create', 'update', 'delete', 'account_add', 'account_update', 'account_delete', 'service_change'
+    activity_category VARCHAR(50) NOT NULL, -- 'customer', 'account', 'service'
+    
+    -- Activity details
+    description TEXT NOT NULL, -- Human-readable description
+    details TEXT, -- JSON with detailed changes
+    
+    -- Related entities
+    customer_account_id BIGINT REFERENCES customer_accounts(id) ON DELETE SET NULL,
+    
+    -- Metadata
+    performed_by VARCHAR(100), -- Optional: user who performed the action
+    
+    -- Timestamp
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+COMMENT ON TABLE customer_activities IS 'Audit trail and activity history for customers';
+COMMENT ON COLUMN customer_activities.activity_type IS 'Type of activity performed';
+COMMENT ON COLUMN customer_activities.activity_category IS 'Category of the activity (customer/account/service)';
+COMMENT ON COLUMN customer_activities.description IS 'Human-readable description of the activity';
+COMMENT ON COLUMN customer_activities.details IS 'Detailed information in JSON format (optional)';
 
 -- ============================================================================
 -- TEAMS TABLE
@@ -349,8 +349,23 @@ CREATE POLICY "Allow all for authenticated users" ON customers
 CREATE POLICY "Allow all for authenticated users" ON customer_accounts
     FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
 
-CREATE POLICY "Allow all for authenticated users" ON customer_activities
-    FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
+-- Restrictive policies for customer_activities audit table
+CREATE POLICY "Select customer activities for authenticated users" ON customer_activities
+    FOR SELECT
+    USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Insert customer activities for authenticated users" ON customer_activities
+    FOR INSERT
+    WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Update customer activities for authenticated users" ON customer_activities
+    FOR UPDATE
+    USING (auth.role() = 'authenticated')
+    WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Delete customer activities for authenticated users" ON customer_activities
+    FOR DELETE
+    USING (auth.role() = 'authenticated');
 
 CREATE POLICY "Allow all for authenticated users" ON teams
     FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
