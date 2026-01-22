@@ -1,5 +1,9 @@
 # Tycoon Racers Event Management - Teil 5 Implementation Summary
 
+> **⚠️ HINWEIS**: Diese Dokumentation wurde für die alte Supabase-Integration erstellt. 
+> Ab Version 1.1.0 verwendet die App **Firebase Realtime Database**.
+> Siehe [FIREBASE_SETUP.md](FIREBASE_SETUP.md) für aktuelle Setup-Anleitung.
+
 ⚠️ **DEPRECATED: Die automatisierte Event-Ausführung wurde entfernt.**
 
 > **Note:** This document describes the original implementation of Teil 5. The automated event execution functionality (EventExecutor, executeEvent method, and "Event ausführen" button) has been removed from the codebase. Manual event management features remain fully functional.

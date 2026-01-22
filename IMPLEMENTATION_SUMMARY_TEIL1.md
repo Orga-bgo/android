@@ -1,5 +1,9 @@
 # Implementation Summary - Teil 1: Supabase Integration
 
+> **⚠️ HINWEIS**: Diese Dokumentation wurde für die alte Supabase-Integration erstellt. 
+> Ab Version 1.1.0 verwendet die App **Firebase Realtime Database**.
+> Siehe [FIREBASE_SETUP.md](FIREBASE_SETUP.md) für aktuelle Setup-Anleitung.
+
 ## Overview
 Successfully implemented Teil 1 of the Supabase integration for the MonopolyGo Android app, adding cloud-based account management infrastructure while maintaining 100% backward compatibility with existing root-based operations.
 
