@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName;
 
 /**
  * Event model for Tycoon Racers events
- * Represents an event in the Supabase database
+ * Represents an event in the Firebase Realtime Database
  */
 public class Event {
     @SerializedName("id")
@@ -72,5 +72,43 @@ public class Event {
         } catch (Exception e) {
             return startDate + " bis " + endDate;
         }
+    }
+    
+    // Firebase-compatible timestamp helpers
+    
+    /**
+     * Get created_at as Unix timestamp (milliseconds)
+     */
+    public long getCreatedAtTimestamp() {
+        try {
+            return Long.parseLong(createdAt);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+    
+    /**
+     * Set created_at from Unix timestamp (milliseconds)
+     */
+    public void setCreatedAtTimestamp(long timestamp) {
+        this.createdAt = String.valueOf(timestamp);
+    }
+    
+    /**
+     * Get updated_at as Unix timestamp (milliseconds)
+     */
+    public long getUpdatedAtTimestamp() {
+        try {
+            return Long.parseLong(updatedAt);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+    
+    /**
+     * Set updated_at from Unix timestamp (milliseconds)
+     */
+    public void setUpdatedAtTimestamp(long timestamp) {
+        this.updatedAt = String.valueOf(timestamp);
     }
 }

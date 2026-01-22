@@ -1,96 +1,79 @@
 package de.babixgo.monopolygo.database;
 
 import de.babixgo.monopolygo.models.Event;
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
- * Repository for managing Event data in Supabase
+ * Repository for managing Event data in Firebase Realtime Database
  * Provides async operations using CompletableFuture
  */
 public class EventRepository {
-    private final SupabaseManager supabase;
+    private final FirebaseManager firebase;
+    private static final String COLLECTION = "events";
     
     public EventRepository() {
-        this.supabase = SupabaseManager.getInstance();
+        this.firebase = FirebaseManager.getInstance();
     }
     
     /**
      * Get all events ordered by start date descending
      */
     public CompletableFuture<List<Event>> getAllEvents() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                if (!supabase.isConfigured()) {
-                    throw new RuntimeException("Supabase ist nicht konfiguriert. Bitte füge deine Supabase-Zugangsdaten in gradle.properties hinzu.");
-                }
-                return supabase.select("events", Event.class, "order=start_date.desc");
-            } catch (IOException e) {
-                throw new RuntimeException("Fehler beim Laden der Events: " + e.getMessage(), e);
-            }
-        });
+        return firebase.getAll(COLLECTION, Event.class)
+            .thenApply(events -> events.stream()
+                .sorted((a, b) -> {
+                    String dateA = a.getStartDate() != null ? a.getStartDate() : "";
+                    String dateB = b.getStartDate() != null ? b.getStartDate() : "";
+                    return dateB.compareTo(dateA); // Descending order
+                })
+                .collect(Collectors.toList()));
     }
     
     /**
      * Get event by ID
      */
     public CompletableFuture<Event> getEventById(long id) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return supabase.selectSingle("events", Event.class, "id=eq." + id);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to load event", e);
-            }
-        });
+        return firebase.getById(COLLECTION, String.valueOf(id), Event.class);
     }
     
     /**
      * Create new event
      */
     public CompletableFuture<Event> createEvent(Event event) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String now = getCurrentTimestamp();
-                event.setCreatedAt(now);
-                event.setUpdatedAt(now);
-                
-                return supabase.insert("events", event, Event.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to create event", e);
-            }
-        });
+        if (!firebase.isConfigured()) {
+            return CompletableFuture.failedFuture(
+                new RuntimeException("Firebase ist nicht konfiguriert.")
+            );
+        }
+        
+        String now = getCurrentTimestamp();
+        event.setCreatedAt(now);
+        event.setUpdatedAt(now);
+        
+        String id = event.getId() != 0 ? String.valueOf(event.getId()) : null;
+        
+        return firebase.save(COLLECTION, event, id);
     }
     
     /**
      * Update event
      */
     public CompletableFuture<Event> updateEvent(Event event) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                event.setUpdatedAt(getCurrentTimestamp());
-                
-                return supabase.update("events", event, "id=eq." + event.getId(), Event.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to update event", e);
-            }
-        });
+        event.setUpdatedAt(getCurrentTimestamp());
+        
+        return firebase.save(COLLECTION, event, String.valueOf(event.getId()));
     }
     
     /**
      * Delete event
      */
     public CompletableFuture<Void> deleteEvent(long id) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                supabase.delete("events", "id=eq." + id);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to delete event", e);
-            }
-        });
+        return firebase.delete(COLLECTION, String.valueOf(id));
     }
     
     /**
@@ -102,9 +85,9 @@ public class EventRepository {
     }
     
     /**
-     * Check if Supabase is configured
+     * Check if Firebase is configured
      */
-    public boolean isSupabaseConfigured() {
-        return supabase.isConfigured();
+    public boolean isFirebaseConfigured() {
+        return firebase.isConfigured();
     }
 }

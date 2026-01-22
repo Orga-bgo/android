@@ -1,7 +1,6 @@
 package de.babixgo.monopolygo;
 
 import android.content.Context;
-import okhttp3.*;
 import org.json.JSONObject;
 import java.io.IOException;
 
@@ -16,8 +15,6 @@ import java.io.IOException;
  */
 public class ShortLinkManager {
     private static final String API_URL = "https://api.short.io/links";
-    
-    private static final OkHttpClient client = new OkHttpClient();
     
     /**
      * DEAKTIVIERT - Wird später implementiert

@@ -1,96 +1,80 @@
 package de.babixgo.monopolygo.database;
 
 import de.babixgo.monopolygo.models.Team;
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 /**
- * Repository for managing Team data in Supabase
+ * Repository for managing Team data in Firebase Realtime Database
  * Provides async operations using CompletableFuture
  */
 public class TeamRepository {
-    private final SupabaseManager supabase;
+    private final FirebaseManager firebase;
+    private static final String COLLECTION = "teams";
     
     public TeamRepository() {
-        this.supabase = SupabaseManager.getInstance();
+        this.firebase = FirebaseManager.getInstance();
     }
     
     /**
      * Get all teams for a specific event
      */
     public CompletableFuture<List<Team>> getTeamsByEventId(long eventId) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                if (!supabase.isConfigured()) {
-                    throw new RuntimeException("Supabase ist nicht konfiguriert. Bitte füge deine Supabase-Zugangsdaten in gradle.properties hinzu.");
-                }
-                return supabase.select("teams", Team.class, "event_id=eq." + eventId + "&order=name.asc");
-            } catch (IOException e) {
-                throw new RuntimeException("Fehler beim Laden der Teams: " + e.getMessage(), e);
-            }
-        });
+        return firebase.getAll(COLLECTION, Team.class)
+            .thenApply(teams -> teams.stream()
+                .filter(team -> team.getEventId() == eventId)
+                .sorted((a, b) -> {
+                    String nameA = a.getName() != null ? a.getName() : "";
+                    String nameB = b.getName() != null ? b.getName() : "";
+                    return nameA.compareToIgnoreCase(nameB);
+                })
+                .collect(Collectors.toList()));
     }
     
     /**
      * Get team by ID
      */
     public CompletableFuture<Team> getTeamById(long id) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return supabase.selectSingle("teams", Team.class, "id=eq." + id);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to load team", e);
-            }
-        });
+        return firebase.getById(COLLECTION, String.valueOf(id), Team.class);
     }
     
     /**
      * Create new team
      */
     public CompletableFuture<Team> createTeam(Team team) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                String now = getCurrentTimestamp();
-                team.setCreatedAt(now);
-                team.setUpdatedAt(now);
-                
-                return supabase.insert("teams", team, Team.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to create team", e);
-            }
-        });
+        if (!firebase.isConfigured()) {
+            return CompletableFuture.failedFuture(
+                new RuntimeException("Firebase ist nicht konfiguriert.")
+            );
+        }
+        
+        String now = getCurrentTimestamp();
+        team.setCreatedAt(now);
+        team.setUpdatedAt(now);
+        
+        String id = team.getId() != 0 ? String.valueOf(team.getId()) : null;
+        
+        return firebase.save(COLLECTION, team, id);
     }
     
     /**
      * Update team
      */
     public CompletableFuture<Team> updateTeam(Team team) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                team.setUpdatedAt(getCurrentTimestamp());
-                
-                return supabase.update("teams", team, "id=eq." + team.getId(), Team.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to update team", e);
-            }
-        });
+        team.setUpdatedAt(getCurrentTimestamp());
+        
+        return firebase.save(COLLECTION, team, String.valueOf(team.getId()));
     }
     
     /**
      * Delete team
      */
     public CompletableFuture<Void> deleteTeam(long id) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                supabase.delete("teams", "id=eq." + id);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to delete team", e);
-            }
-        });
+        return firebase.delete(COLLECTION, String.valueOf(id));
     }
     
     /**
@@ -102,9 +86,9 @@ public class TeamRepository {
     }
     
     /**
-     * Check if Supabase is configured
+     * Check if Firebase is configured
      */
-    public boolean isSupabaseConfigured() {
-        return supabase.isConfigured();
+    public boolean isFirebaseConfigured() {
+        return firebase.isConfigured();
     }
 }

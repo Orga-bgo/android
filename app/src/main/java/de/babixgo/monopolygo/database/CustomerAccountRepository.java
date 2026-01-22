@@ -4,25 +4,28 @@ import android.util.Log;
 import com.google.gson.JsonObject;
 import de.babixgo.monopolygo.models.CustomerAccount;
 import de.babixgo.monopolygo.utils.EncryptionHelper;
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Repository for managing CustomerAccount data in Supabase
+ * Repository for managing CustomerAccount data in Firebase Realtime Database
  * Handles encryption/decryption of passwords
  * Provides async operations using CompletableFuture
  */
 public class CustomerAccountRepository {
     private static final String TAG = "CustomerAccountRepository";
-    private final SupabaseManager supabase;
+    private final FirebaseManager firebase;
     private CustomerActivityRepository activityRepository;
+    private static final String COLLECTION = "customer_accounts";
 
     public CustomerAccountRepository() {
-        this.supabase = SupabaseManager.getInstance();
+        this.firebase = FirebaseManager.getInstance();
     }
     
     /**
@@ -42,22 +45,23 @@ public class CustomerAccountRepository {
      * Automatically encrypts password before storing
      */
     public CompletableFuture<CustomerAccount> createCustomerAccount(CustomerAccount account) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                Log.d(TAG, "Creating customer account for customer: " + account.getCustomerId());
-                
-                String now = getCurrentTimestamp();
-                account.setCreatedAt(now);
-                account.setUpdatedAt(now);
-                
-                // Encrypt password if present
-                if (account.getCredentialsPassword() != null && !account.getCredentialsPassword().isEmpty()) {
-                    String encrypted = EncryptionHelper.encrypt(account.getCredentialsPassword());
-                    account.setCredentialsPassword(encrypted);
-                }
-                
-                CustomerAccount created = supabase.insert("customer_accounts", account, CustomerAccount.class);
-                
+        Log.d(TAG, "Creating customer account for customer: " + account.getCustomerId());
+        
+        String now = getCurrentTimestamp();
+        account.setCreatedAt(now);
+        account.setUpdatedAt(now);
+        
+        // Encrypt password if present
+        if (account.getCredentialsPassword() != null && !account.getCredentialsPassword().isEmpty()) {
+            String encrypted = EncryptionHelper.encrypt(account.getCredentialsPassword());
+            account.setCredentialsPassword(encrypted);
+        }
+        
+        // Generate ID if not set
+        String id = account.getId() != 0 ? String.valueOf(account.getId()) : null;
+        
+        return firebase.save(COLLECTION, account, id)
+            .thenApply(created -> {
                 // Decrypt password for returning to caller
                 if (created.getCredentialsPassword() != null && !created.getCredentialsPassword().isEmpty()) {
                     String decrypted = EncryptionHelper.decrypt(created.getCredentialsPassword());
@@ -78,12 +82,7 @@ public class CustomerAccountRepository {
                 
                 Log.d(TAG, "Customer account created with ID: " + created.getId());
                 return created;
-                
-            } catch (IOException e) {
-                Log.e(TAG, "Create customer account failed", e);
-                throw new RuntimeException("Failed to create customer account: " + e.getMessage(), e);
-            }
-        });
+            });
     }
 
     // ==================== READ ====================
@@ -93,32 +92,26 @@ public class CustomerAccountRepository {
      * Automatically decrypts passwords
      */
     public CompletableFuture<List<CustomerAccount>> getAccountsByCustomerId(long customerId) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
+        return firebase.getAll(COLLECTION, CustomerAccount.class)
+            .thenApply(accounts -> {
                 Log.d(TAG, "Loading accounts for customer: " + customerId);
                 
-                List<CustomerAccount> accounts = supabase.select(
-                    "customer_accounts", 
-                    CustomerAccount.class, 
-                    "customer_id=eq." + customerId
-                );
+                // Filter by customer_id client-side
+                List<CustomerAccount> filtered = accounts.stream()
+                    .filter(account -> account.getCustomerId() == customerId)
+                    .collect(Collectors.toList());
                 
                 // Decrypt passwords
-                for (CustomerAccount account : accounts) {
+                for (CustomerAccount account : filtered) {
                     if (account.getCredentialsPassword() != null && !account.getCredentialsPassword().isEmpty()) {
                         String decrypted = EncryptionHelper.decrypt(account.getCredentialsPassword());
                         account.setCredentialsPassword(decrypted);
                     }
                 }
                 
-                Log.d(TAG, "Loaded " + accounts.size() + " accounts");
-                return accounts;
-                
-            } catch (IOException e) {
-                Log.e(TAG, "Get customer accounts failed", e);
-                throw new RuntimeException("Failed to load customer accounts: " + e.getMessage(), e);
-            }
-        });
+                Log.d(TAG, "Loaded " + filtered.size() + " accounts");
+                return filtered;
+            });
     }
     
     /**
@@ -126,29 +119,18 @@ public class CustomerAccountRepository {
      * Automatically decrypts password
      */
     public CompletableFuture<CustomerAccount> getAccountById(long id) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
+        return firebase.getById(COLLECTION, String.valueOf(id), CustomerAccount.class)
+            .thenApply(account -> {
                 Log.d(TAG, "Loading customer account: " + id);
                 
-                CustomerAccount account = supabase.selectSingle(
-                    "customer_accounts", 
-                    CustomerAccount.class, 
-                    "id=eq." + id
-                );
-                
                 // Decrypt password
-                if (account.getCredentialsPassword() != null && !account.getCredentialsPassword().isEmpty()) {
+                if (account != null && account.getCredentialsPassword() != null && !account.getCredentialsPassword().isEmpty()) {
                     String decrypted = EncryptionHelper.decrypt(account.getCredentialsPassword());
                     account.setCredentialsPassword(decrypted);
                 }
                 
                 return account;
-                
-            } catch (IOException e) {
-                Log.e(TAG, "Get customer account failed", e);
-                throw new RuntimeException("Failed to load customer account: " + e.getMessage(), e);
-            }
-        });
+            });
     }
 
     // ==================== UPDATE ====================
@@ -158,19 +140,13 @@ public class CustomerAccountRepository {
      * Automatically encrypts password if changed
      */
     public CompletableFuture<Void> updateCustomerAccount(CustomerAccount account) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                Log.d(TAG, "Updating customer account: " + account.getId());
-                
-                JsonObject json = buildJsonObject(account);
-                json.addProperty("updated_at", java.time.Instant.now().toString());
-                
-                supabase.update(
-                    "customer_accounts", 
-                    "id=eq." + account.getId(), 
-                    json.toString()
-                );
-                
+        Log.d(TAG, "Updating customer account: " + account.getId());
+        
+        Map<String, Object> updates = buildUpdateMap(account);
+        updates.put("updatedAt", getCurrentTimestamp());
+        
+        return firebase.updateFields(COLLECTION, String.valueOf(account.getId()), updates)
+            .thenRun(() -> {
                 // Log activity with customer_account_id
                 getActivityRepository().logActivity(
                     account.getCustomerId(),
@@ -184,37 +160,19 @@ public class CustomerAccountRepository {
                 });
                 
                 Log.d(TAG, "Customer account updated successfully");
-                
-            } catch (Exception e) {
-                Log.e(TAG, "Update customer account failed", e);
-                throw new RuntimeException("Update customer account failed: " + e.getMessage(), e);
-            }
-        });
+            });
     }
     
     /**
      * Update backup reference for boost service
      */
     public CompletableFuture<Void> updateBackupReference(long customerAccountId, long accountId) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                CustomerAccount account = new CustomerAccount();
-                account.setId(customerAccountId);
-                account.setBackupAccountId(accountId);
-                account.setBackupCreatedAt(getCurrentTimestamp());
-                account.setUpdatedAt(getCurrentTimestamp());
-                
-                supabase.update(
-                    "customer_accounts", 
-                    account, 
-                    "id=eq." + customerAccountId, 
-                    CustomerAccount.class
-                );
-                
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to update backup reference: " + e.getMessage(), e);
-            }
-        });
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("backupAccountId", accountId);
+        updates.put("backupCreatedAt", getCurrentTimestamp());
+        updates.put("updatedAt", getCurrentTimestamp());
+        
+        return firebase.updateFields(COLLECTION, String.valueOf(customerAccountId), updates);
     }
 
     // ==================== DELETE ====================
@@ -223,13 +181,11 @@ public class CustomerAccountRepository {
      * Delete customer account with activity logging
      */
     public CompletableFuture<Void> deleteCustomerAccount(long id) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                Log.d(TAG, "Deleting customer account: " + id);
-                
-                // Get account info before deleting for activity log
-                CustomerAccount account = supabase.selectSingle("customer_accounts", CustomerAccount.class, "id=eq." + id);
-                
+        Log.d(TAG, "Deleting customer account: " + id);
+        
+        // Get account info before deleting for activity log
+        return firebase.getById(COLLECTION, String.valueOf(id), CustomerAccount.class)
+            .thenCompose(account -> {
                 if (account != null) {
                     // Log activity before deletion with customer_account_id
                     getActivityRepository().logActivity(
@@ -244,69 +200,65 @@ public class CustomerAccountRepository {
                     });
                 }
                 
-                supabase.delete("customer_accounts", "id=eq." + id);
-                Log.d(TAG, "Customer account deleted successfully");
-                
-            } catch (Exception e) {
-                Log.e(TAG, "Delete customer account failed", e);
-                throw new RuntimeException("Delete customer account failed: " + e.getMessage(), e);
-            }
-        });
+                return firebase.delete(COLLECTION, String.valueOf(id));
+            })
+            .thenRun(() -> Log.d(TAG, "Customer account deleted successfully"));
     }
 
     // ==================== HELPER ====================
     
     /**
-     * Build JsonObject from CustomerAccount for update operations
+     * Build update map from CustomerAccount for update operations
      */
-    private JsonObject buildJsonObject(CustomerAccount account) {
-        JsonObject json = new JsonObject();
+    private Map<String, Object> buildUpdateMap(CustomerAccount account) {
+        Map<String, Object> updates = new HashMap<>();
         
-        json.addProperty("customer_id", account.getCustomerId());
+        updates.put("customerId", account.getCustomerId());
         
         if (account.getIngameName() != null) {
-            json.addProperty("ingame_name", account.getIngameName());
+            updates.put("ingameName", account.getIngameName());
         }
         if (account.getFriendLink() != null) {
-            json.addProperty("friend_link", account.getFriendLink());
+            updates.put("friendLink", account.getFriendLink());
         }
         if (account.getFriendCode() != null) {
-            json.addProperty("friend_code", account.getFriendCode());
+            updates.put("friendCode", account.getFriendCode());
         }
         
         // Services
-        json.addProperty("service_partner", account.isServicePartner());
-        json.addProperty("service_race", account.isServiceRace());
-        json.addProperty("service_boost", account.isServiceBoost());
+        updates.put("servicePartner", account.isServicePartner());
+        updates.put("serviceRace", account.isServiceRace());
+        updates.put("serviceBoost", account.isServiceBoost());
         
         // Partner-specific
         if (account.isServicePartner()) {
-            json.addProperty("partner_count", account.getPartnerCount());
+            updates.put("partnerCount", account.getPartnerCount());
         }
         
         // Boost-specific
         if (account.isServiceBoost()) {
             if (account.getBackupAccountId() != null) {
-                json.addProperty("backup_account_id", account.getBackupAccountId());
+                updates.put("backupAccountId", account.getBackupAccountId());
             }
             if (account.getBackupCreatedAt() != null) {
-                json.addProperty("backup_created_at", account.getBackupCreatedAt());
+                updates.put("backupCreatedAt", account.getBackupCreatedAt());
             }
             if (account.getCredentialsUsername() != null) {
-                json.addProperty("credentials_username", account.getCredentialsUsername());
+                updates.put("credentialsUsername", account.getCredentialsUsername());
             }
             if (account.getCredentialsPassword() != null && !account.getCredentialsPassword().isEmpty()) {
                 String encrypted = EncryptionHelper.encrypt(account.getCredentialsPassword());
-                json.addProperty("credentials_password", encrypted);
+                updates.put("credentialsPassword", encrypted);
             }
         }
         
-        return json;
+        return updates;
     }
     
     /**
      * Helper method for current timestamp in ISO 8601 format
      * Uses system default locale for consistency with CustomerRepository
+     * Creates a new SimpleDateFormat instance for thread safety
      */
     private String getCurrentTimestamp() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
@@ -314,9 +266,9 @@ public class CustomerAccountRepository {
     }
     
     /**
-     * Check if Supabase is configured
+     * Check if Firebase is configured
      */
-    public boolean isSupabaseConfigured() {
-        return supabase.isConfigured();
+    public boolean isFirebaseConfigured() {
+        return firebase.isConfigured();
     }
 }
