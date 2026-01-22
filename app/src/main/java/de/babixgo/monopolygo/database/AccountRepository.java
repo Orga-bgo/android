@@ -1,38 +1,40 @@
 package de.babixgo.monopolygo.database;
 
 import de.babixgo.monopolygo.models.Account;
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Repository for managing Account data in Supabase
+ * Repository for managing Account data in Firebase Realtime Database
  * Provides async operations using CompletableFuture
  */
 public class AccountRepository {
-    private final SupabaseManager supabase;
+    private final FirebaseManager firebase;
+    private static final String COLLECTION = "accounts";
     
     public AccountRepository() {
-        this.supabase = SupabaseManager.getInstance();
+        this.firebase = FirebaseManager.getInstance();
     }
     
     /**
      * Alle Accounts laden (nicht gelöscht)
      */
     public CompletableFuture<List<Account>> getAllAccounts() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                if (!supabase.isConfigured()) {
-                    throw new RuntimeException("Supabase ist nicht konfiguriert. Bitte füge deine Supabase-Zugangsdaten in gradle.properties hinzu.");
-                }
-                return supabase.select("accounts", Account.class, "deleted_at=is.null&order=name.asc");
-            } catch (IOException e) {
-                throw new RuntimeException("Fehler beim Laden der Accounts: " + e.getMessage(), e);
-            }
-        });
+        return firebase.getAll(COLLECTION, Account.class)
+            .thenApply(accounts -> accounts.stream()
+                .filter(account -> account.getDeletedAt() == null || account.getDeletedAt().isEmpty())
+                .sorted((a, b) -> {
+                    String nameA = a.getName() != null ? a.getName() : "";
+                    String nameB = b.getName() != null ? b.getName() : "";
+                    return nameA.compareToIgnoreCase(nameB);
+                })
+                .collect(Collectors.toList()));
     }
     
     /**
@@ -40,44 +42,37 @@ public class AccountRepository {
      * (für AccountListFragment)
      */
     public CompletableFuture<List<Account>> getNonCustomerAccounts() {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                if (!supabase.isConfigured()) {
-                    throw new RuntimeException("Supabase ist nicht konfiguriert. Bitte füge deine Supabase-Zugangsdaten in gradle.properties hinzu.");
-                }
-                return supabase.select("accounts", Account.class, 
-                    "deleted_at=is.null&is_customer_account=eq.false&order=name.asc");
-            } catch (IOException e) {
-                throw new RuntimeException("Fehler beim Laden der Accounts: " + e.getMessage(), e);
-            }
-        });
+        return firebase.getAll(COLLECTION, Account.class)
+            .thenApply(accounts -> accounts.stream()
+                .filter(account -> (account.getDeletedAt() == null || account.getDeletedAt().isEmpty()) &&
+                                 !account.isCustomerAccount())
+                .sorted((a, b) -> {
+                    String nameA = a.getName() != null ? a.getName() : "";
+                    String nameB = b.getName() != null ? b.getName() : "";
+                    return nameA.compareToIgnoreCase(nameB);
+                })
+                .collect(Collectors.toList()));
     }
     
     /**
      * Account nach ID laden
      */
     public CompletableFuture<Account> getAccountById(long id) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return supabase.selectSingle("accounts", Account.class, "id=eq." + id);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to load account", e);
-            }
-        });
+        return firebase.getById(COLLECTION, String.valueOf(id), Account.class);
     }
     
     /**
      * Account nach Name laden
      */
     public CompletableFuture<Account> getAccountByName(String name) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                return supabase.selectSingle("accounts", Account.class, 
-                    "name=eq." + name + "&deleted_at=is.null");
-            } catch (IOException e) {
-                return null; // Account existiert nicht
-            }
-        });
+        return firebase.getByField(COLLECTION, "name", name, Account.class)
+            .thenApply(account -> {
+                // Filter out deleted accounts
+                if (account != null && (account.getDeletedAt() == null || account.getDeletedAt().isEmpty())) {
+                    return account;
+                }
+                return null;
+            });
     }
     
     /**
@@ -85,19 +80,19 @@ public class AccountRepository {
      */
     public CompletableFuture<Account> createAccount(Account account) {
         return CompletableFuture.supplyAsync(() -> {
-            try {
-                if (!supabase.isConfigured()) {
-                    throw new RuntimeException("Supabase ist nicht konfiguriert. Account wurde lokal gesichert, aber nicht in der Datenbank gespeichert.");
-                }
-                // Set timestamps
-                String now = getCurrentTimestamp();
-                account.setCreatedAt(now);
-                account.setUpdatedAt(now);
-                
-                return supabase.insert("accounts", account, Account.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Fehler beim Erstellen des Accounts: " + e.getMessage(), e);
+            if (!firebase.isConfigured()) {
+                throw new RuntimeException("Firebase ist nicht konfiguriert. Account wurde lokal gesichert, aber nicht in der Datenbank gespeichert.");
             }
+            
+            // Set timestamps
+            String now = getCurrentTimestamp();
+            account.setCreatedAt(now);
+            account.setUpdatedAt(now);
+            
+            // Generate ID if not set
+            String id = account.getId() != 0 ? String.valueOf(account.getId()) : null;
+            
+            return firebase.save(COLLECTION, account, id).join();
         });
     }
     
@@ -106,14 +101,10 @@ public class AccountRepository {
      */
     public CompletableFuture<Account> updateAccount(Account account) {
         return CompletableFuture.supplyAsync(() -> {
-            try {
-                // Set updated timestamp
-                account.setUpdatedAt(getCurrentTimestamp());
-                
-                return supabase.update("accounts", account, "id=eq." + account.getId(), Account.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to update account", e);
-            }
+            // Set updated timestamp
+            account.setUpdatedAt(getCurrentTimestamp());
+            
+            return firebase.save(COLLECTION, account, String.valueOf(account.getId())).join();
         });
     }
     
@@ -121,103 +112,67 @@ public class AccountRepository {
      * Account löschen (soft delete)
      */
     public CompletableFuture<Void> deleteAccount(long id) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                Account account = new Account();
-                account.setDeletedAt(getCurrentTimestamp());
-                
-                supabase.update("accounts", account, "id=eq." + id, Account.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to delete account", e);
-            }
-        });
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("deletedAt", getCurrentTimestamp());
+        
+        return firebase.updateFields(COLLECTION, String.valueOf(id), updates);
     }
     
     /**
      * Last Played Timestamp aktualisieren
      */
     public CompletableFuture<Void> updateLastPlayed(long id) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                Account account = new Account();
-                account.setLastPlayed(getCurrentTimestamp());
-                account.setUpdatedAt(getCurrentTimestamp());
-                
-                supabase.update("accounts", account, "id=eq." + id, Account.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to update last played", e);
-            }
-        });
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("lastPlayed", getCurrentTimestamp());
+        updates.put("updatedAt", getCurrentTimestamp());
+        
+        return firebase.updateFields(COLLECTION, String.valueOf(id), updates);
     }
     
     /**
      * Account Status aktualisieren
      */
     public CompletableFuture<Void> updateAccountStatus(long id, String status) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                Account account = new Account();
-                account.setAccountStatus(status);
-                account.setUpdatedAt(getCurrentTimestamp());
-                
-                supabase.update("accounts", account, "id=eq." + id, Account.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to update account status", e);
-            }
-        });
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("accountStatus", status);
+        updates.put("updatedAt", getCurrentTimestamp());
+        
+        return firebase.updateFields(COLLECTION, String.valueOf(id), updates);
     }
     
     /**
      * Device IDs aktualisieren
      */
     public CompletableFuture<Void> updateDeviceIds(long id, String ssaid, String gaid, String deviceId) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                Account account = new Account();
-                account.setSsaid(ssaid);
-                account.setGaid(gaid);
-                account.setDeviceId(deviceId);
-                account.setUpdatedAt(getCurrentTimestamp());
-                
-                supabase.update("accounts", account, "id=eq." + id, Account.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to update device IDs", e);
-            }
-        });
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("ssaid", ssaid);
+        updates.put("gaid", gaid);
+        updates.put("deviceId", deviceId);
+        updates.put("updatedAt", getCurrentTimestamp());
+        
+        return firebase.updateFields(COLLECTION, String.valueOf(id), updates);
     }
     
     /**
      * Suspension Status aktualisieren
      */
     public CompletableFuture<Void> updateSuspensionStatus(long id, String status) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                Account account = new Account();
-                account.setSuspensionStatus(status);
-                account.setUpdatedAt(getCurrentTimestamp());
-                
-                supabase.update("accounts", account, "id=eq." + id, Account.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to update suspension status", e);
-            }
-        });
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("suspensionStatus", status);
+        updates.put("updatedAt", getCurrentTimestamp());
+        
+        return firebase.updateFields(COLLECTION, String.valueOf(id), updates);
     }
     
     /**
      * Notiz aktualisieren
      */
     public CompletableFuture<Void> updateNote(long id, String note) {
-        return CompletableFuture.runAsync(() -> {
-            try {
-                Account account = new Account();
-                account.setNote(note);
-                account.setUpdatedAt(getCurrentTimestamp());
-                
-                supabase.update("accounts", account, "id=eq." + id, Account.class);
-            } catch (IOException e) {
-                throw new RuntimeException("Failed to update note", e);
-            }
-        });
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("note", note);
+        updates.put("updatedAt", getCurrentTimestamp());
+        
+        return firebase.updateFields(COLLECTION, String.valueOf(id), updates);
     }
     
     /**
@@ -230,9 +185,9 @@ public class AccountRepository {
     }
     
     /**
-     * Check if Supabase is configured
+     * Check if Firebase is configured
      */
-    public boolean isSupabaseConfigured() {
-        return supabase.isConfigured();
+    public boolean isFirebaseConfigured() {
+        return firebase.isConfigured();
     }
 }

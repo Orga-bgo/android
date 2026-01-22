@@ -2,25 +2,29 @@ package de.babixgo.monopolygo.database;
 
 import android.util.Log;
 import de.babixgo.monopolygo.models.Customer;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.stream.Collectors;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
- * Repository for managing Customer data in Supabase
+ * Repository for managing Customer data in Firebase Realtime Database
  * Provides async operations using CompletableFuture
  */
 public class CustomerRepository {
-    private final SupabaseManager supabase;
+    private static final String TAG = "CustomerRepository";
+    private final FirebaseManager firebase;
     private final CustomerAccountRepository accountRepository;
     private final CustomerActivityRepository activityRepository;
+    private static final String COLLECTION = "customers";
     
     public CustomerRepository() {
-        this.supabase = SupabaseManager.getInstance();
+        this.firebase = FirebaseManager.getInstance();
         this.accountRepository = new CustomerAccountRepository();
         this.activityRepository = new CustomerActivityRepository();
     }
@@ -30,15 +34,22 @@ public class CustomerRepository {
      * @param loadAccounts If true, loads accounts for each customer
      */
     public CompletableFuture<List<Customer>> getAllCustomers(boolean loadAccounts) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                ensureConfigured();
-                List<Customer> customers = supabase.select("customers", Customer.class, "order=name.asc");
+        return firebase.getAll(COLLECTION, Customer.class)
+            .thenApply(customers -> {
+                // Sort by name client-side
+                List<Customer> sortedCustomers = customers.stream()
+                    .filter(customer -> customer.getDeletedAt() == null || customer.getDeletedAt().isEmpty())
+                    .sorted((a, b) -> {
+                        String nameA = a.getName() != null ? a.getName() : "";
+                        String nameB = b.getName() != null ? b.getName() : "";
+                        return nameA.compareToIgnoreCase(nameB);
+                    })
+                    .collect(Collectors.toList());
 
                 if (loadAccounts) {
                     // Load accounts for each customer in parallel and wait for all to complete
                     List<CompletableFuture<Void>> accountFutures = new ArrayList<>();
-                    for (Customer customer : customers) {
+                    for (Customer customer : sortedCustomers) {
                         CompletableFuture<Void> future = accountRepository
                                 .getAccountsByCustomerId(customer.getId())
                                 .thenAccept(accounts -> {
@@ -50,6 +61,7 @@ public class CustomerRepository {
                                 })
                                 .exceptionally(e -> {
                                     // Log error but continue with other customers
+                                    Log.e(TAG, "Failed to load accounts for customer: " + customer.getId(), (Throwable) e);
                                     customer.setAccounts(new ArrayList<>());
                                     return null;
                                 });
@@ -59,11 +71,8 @@ public class CustomerRepository {
                     // Wait for all account-loading operations to complete
                     CompletableFuture.allOf(accountFutures.toArray(new CompletableFuture[0])).join();
                 }
-                return customers;
-            } catch (IOException e) {
-                throw wrapIOException("Fehler beim Laden der Kunden", e);
-            }
-        });
+                return sortedCustomers;
+            });
     }
     
     /**
@@ -78,26 +87,21 @@ public class CustomerRepository {
      * @param loadAccounts If true, loads accounts for the customer
      */
     public CompletableFuture<Customer> getCustomerById(long id, boolean loadAccounts) {
-        return CompletableFuture.supplyAsync(() -> {
-            try {
-                ensureConfigured();
-                Customer customer = supabase.selectSingle("customers", Customer.class, "id=eq." + id);
-                
+        return firebase.getById(COLLECTION, String.valueOf(id), Customer.class)
+            .thenApply(customer -> {
                 if (loadAccounts && customer != null) {
                     try {
                         List<de.babixgo.monopolygo.models.CustomerAccount> accounts = 
                             accountRepository.getAccountsByCustomerId(customer.getId()).get();
                         customer.setAccounts(accounts);
                     } catch (Exception e) {
+                        Log.e(TAG, "Failed to load accounts for customer: " + id, e);
                         customer.setAccounts(new ArrayList<>());
                     }
                 }
                 
                 return customer;
-            } catch (IOException e) {
-                throw wrapIOException("Fehler beim Laden des Kunden", e);
-            }
-        });
+            });
     }
     
     /**
@@ -112,30 +116,33 @@ public class CustomerRepository {
      */
     public CompletableFuture<Customer> createCustomer(Customer customer) {
         return CompletableFuture.supplyAsync(() -> {
-            try {
-                ensureConfigured();
-                
-                // Timestamps are set automatically by database triggers
-                // No need to set them manually
-                
-                Customer created = supabase.insert("customers", customer, Customer.class);
-                
-                // Log activity
-                activityRepository.logActivity(
-                    created.getId(), 
-                    "create", 
-                    "customer", 
-                    "Kunde erstellt: " + created.getName()
-                ).exceptionally(e -> {
-                    // Log error but don't fail the operation
-                    Log.e("CustomerRepository", "Failed to log customer creation activity", (Throwable) e);
-                    return null;
-                });
-                
-                return created;
-            } catch (IOException e) {
-                throw wrapIOException("Fehler beim Erstellen des Kunden", e);
+            if (!firebase.isConfigured()) {
+                throw new RuntimeException("Firebase ist nicht konfiguriert.");
             }
+            
+            // Set timestamps
+            String now = getCurrentTimestamp();
+            customer.setCreatedAt(now);
+            customer.setUpdatedAt(now);
+            
+            // Generate ID if not set
+            String id = customer.getId() != 0 ? String.valueOf(customer.getId()) : null;
+            
+            Customer created = firebase.save(COLLECTION, customer, id).join();
+            
+            // Log activity
+            activityRepository.logActivity(
+                created.getId(), 
+                "create", 
+                "customer", 
+                "Kunde erstellt: " + created.getName()
+            ).exceptionally(e -> {
+                // Log error but don't fail the operation
+                Log.e(TAG, "Failed to log customer creation activity", (Throwable) e);
+                return null;
+            });
+            
+            return created;
         });
     }
     
@@ -144,88 +151,64 @@ public class CustomerRepository {
      */
     public CompletableFuture<Customer> updateCustomer(Customer customer) {
         return CompletableFuture.supplyAsync(() -> {
-            try {
-                ensureConfigured();
-                
-                // updated_at is set automatically by database trigger
-                
-                Customer updated = supabase.update("customers", customer, "id=eq." + customer.getId(), Customer.class);
-                
-                // Log activity
-                activityRepository.logActivity(
-                    updated.getId(), 
-                    "update", 
-                    "customer", 
-                    "Kundendaten aktualisiert: " + updated.getName()
-                ).exceptionally(e -> {
-                    Log.e("CustomerRepository", "Failed to log customer update activity", (Throwable) e);
-                    return null;
-                });
-                
-                return updated;
-            } catch (IOException e) {
-                throw wrapIOException("Fehler beim Aktualisieren des Kunden", e);
-            }
+            // Set updated timestamp
+            customer.setUpdatedAt(getCurrentTimestamp());
+            
+            Customer updated = firebase.save(COLLECTION, customer, String.valueOf(customer.getId())).join();
+            
+            // Log activity
+            activityRepository.logActivity(
+                updated.getId(), 
+                "update", 
+                "customer", 
+                "Kundendaten aktualisiert: " + updated.getName()
+            ).exceptionally(e -> {
+                Log.e(TAG, "Failed to log customer update activity", (Throwable) e);
+                return null;
+            });
+            
+            return updated;
         });
     }
     
     /**
-     * Delete customer (CASCADE will delete associated customer_accounts)
-     * Note: Activity log will be preserved as customer_id is nullable with ON DELETE SET NULL
+     * Delete customer (soft delete)
+     * Note: Associated customer_accounts should also be soft-deleted
      */
     public CompletableFuture<Void> deleteCustomer(long id) {
         return CompletableFuture.runAsync(() -> {
-            try {
-                ensureConfigured();
-                
-                // Get customer name before deleting for activity log
-                Customer customer = supabase.selectSingle("customers", Customer.class, "id=eq." + id);
-                String customerName = customer != null ? customer.getName() : "Unbekannt";
-                
-                // Log activity before deletion
-                activityRepository.logActivity(
-                    id, 
-                    "delete", 
-                    "customer", 
-                    "Kunde gelöscht: " + customerName
-                ).exceptionally(e -> {
-                    Log.e("CustomerRepository", "Failed to log customer deletion activity", (Throwable) e);
-                    return null;
-                });
-                
-                // Delete customer (activities will remain with customer_id = NULL due to ON DELETE SET NULL)
-                supabase.delete("customers", "id=eq." + id);
-            } catch (IOException e) {
-                throw wrapIOException("Fehler beim Löschen des Kunden", e);
-            }
+            // Get customer name before deleting for activity log
+            Customer customer = firebase.getById(COLLECTION, String.valueOf(id), Customer.class).join();
+            String customerName = customer != null ? customer.getName() : "Unbekannt";
+            
+            // Log activity before deletion
+            activityRepository.logActivity(
+                id, 
+                "delete", 
+                "customer", 
+                "Kunde gelöscht: " + customerName
+            ).exceptionally(e -> {
+                Log.e(TAG, "Failed to log customer deletion activity", (Throwable) e);
+                return null;
+            });
+            
+            // Soft delete customer
+            Map<String, Object> updates = new HashMap<>();
+            updates.put("deletedAt", getCurrentTimestamp());
+            firebase.updateFields(COLLECTION, String.valueOf(id), updates).join();
         });
     }
     
     /**
-     * Check if Supabase is configured
+     * Check if Firebase is configured
      */
-    public boolean isSupabaseConfigured() {
-        return supabase.isConfigured();
-    }
-    
-    /**
-     * Ensure Supabase is configured, throw exception if not
-     */
-    private void ensureConfigured() {
-        if (!supabase.isConfigured()) {
-            throw new RuntimeException("Supabase ist nicht konfiguriert. Bitte füge deine Supabase-Zugangsdaten in gradle.properties hinzu.");
-        }
-    }
-    
-    /**
-     * Wrap IOException with German error message
-     */
-    private RuntimeException wrapIOException(String message, IOException e) {
-        return new RuntimeException(message + ": " + e.getMessage(), e);
+    public boolean isFirebaseConfigured() {
+        return firebase.isConfigured();
     }
     
     /**
      * Helper method for current timestamp in ISO 8601 format
+     * Creates a new SimpleDateFormat instance for thread safety
      */
     private String getCurrentTimestamp() {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault());
