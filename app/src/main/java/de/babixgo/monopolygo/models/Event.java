@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName;
 
 /**
  * Event model for Tycoon Racers events
- * Represents an event in the Supabase database
+ * Represents an event in the Firebase Realtime Database
  */
 public class Event {
     @SerializedName("id")

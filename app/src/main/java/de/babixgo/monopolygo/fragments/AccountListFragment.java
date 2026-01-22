@@ -192,7 +192,7 @@ public class AccountListFragment extends Fragment {
                 // WICHTIG: KEIN Friend Link generieren!
                 // Friend Link wird manuell später hinzugefügt
                 
-                // 7. In Supabase speichern
+                // 7. In Firebase speichern
                 repository.createAccount(account)
                     .thenRun(() -> {
                         if (getActivity() != null) {
@@ -207,7 +207,7 @@ public class AccountListFragment extends Fragment {
                     .exceptionally(throwable -> {
                         if (getActivity() != null) {
                             getActivity().runOnUiThread(() -> {
-                                Log.e(TAG, "Supabase save failed", throwable);
+                                Log.e(TAG, "Firebase save failed", throwable);
                                 Toast.makeText(requireContext(), 
                                     "Fehler beim Speichern: " + throwable.getMessage(), 
                                     Toast.LENGTH_LONG).show();

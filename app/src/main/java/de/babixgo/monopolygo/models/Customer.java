@@ -6,7 +6,7 @@ import java.util.List;
 
 /**
  * Customer model for customer management
- * Represents a customer in the Supabase database
+ * Represents a customer in the Firebase Realtime Database
  */
 public class Customer {
     @SerializedName("id")

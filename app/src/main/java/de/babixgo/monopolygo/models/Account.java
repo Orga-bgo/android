@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName;
 
 /**
  * Account model for MonopolyGo accounts
- * Represents an account in the Supabase database
+ * Represents an account in the Firebase Realtime Database
  */
 public class Account {
     @SerializedName("id")

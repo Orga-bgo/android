@@ -4,7 +4,7 @@ import com.google.gson.annotations.SerializedName;
 
 /**
  * Team model for event teams
- * Represents a team with 4 account slots in the Supabase database
+ * Represents a team with 4 account slots in the Firebase Realtime Database
  */
 public class Team {
     @SerializedName("id")
