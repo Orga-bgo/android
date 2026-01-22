@@ -142,7 +142,7 @@ SELECT
 -- 5. CHECK FOREIGN KEY CONSTRAINTS
 -- ============================================================================
 
--- Expected: 10 foreign key constraints across all tables
+-- Expected: 9 foreign key constraints across all tables
 SELECT
     '5. FOREIGN KEYS' as "Check",
     tc.constraint_name as "Constraint Name",
@@ -325,7 +325,7 @@ UNION ALL
 SELECT
     '13. SUMMARY',
     'Foreign Keys',
-    COUNT(DISTINCT constraint_name)::text || ' / 10 expected'
+    COUNT(DISTINCT constraint_name)::text || ' / 9 expected'
 FROM information_schema.table_constraints
 WHERE constraint_type = 'FOREIGN KEY'
 AND table_name IN ('accounts', 'events', 'customers', 'customer_accounts', 'teams');
