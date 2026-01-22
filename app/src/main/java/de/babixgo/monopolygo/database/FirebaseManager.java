@@ -113,6 +113,14 @@ public class FirebaseManager {
                 for (DataSnapshot child : snapshot.getChildren()) {
                     T item = child.getValue(clazz);
                     if (item != null) {
+                        // Set ID from Firebase key
+                        try {
+                            String key = child.getKey();
+                            Method setIdMethod = item.getClass().getMethod("setId", long.class);
+                            setIdMethod.invoke(item, Long.parseLong(key));
+                        } catch (Exception e) {
+                            Log.w(TAG, "Could not set ID on object", e);
+                        }
                         items.add(item);
                     }
                 }
@@ -153,7 +161,15 @@ public class FirebaseManager {
             public void onDataChange(DataSnapshot snapshot) {
                 T item = snapshot.getValue(clazz);
                 if (item != null) {
-                    Log.d(TAG, "Found object in " + collection + "/" + id);
+                    // Set ID from Firebase key
+                    try {
+                        String key = snapshot.getKey();
+                        Method setIdMethod = item.getClass().getMethod("setId", long.class);
+                        setIdMethod.invoke(item, Long.parseLong(key));
+                        Log.d(TAG, "Found object in " + collection + "/" + id);
+                    } catch (Exception e) {
+                        Log.w(TAG, "Could not set ID on object", e);
+                    }
                 } else {
                     Log.d(TAG, "No object found in " + collection + "/" + id);
                 }
@@ -212,7 +228,17 @@ public class FirebaseManager {
                 public void onDataChange(DataSnapshot snapshot) {
                     for (DataSnapshot child : snapshot.getChildren()) {
                         T item = child.getValue(clazz);
-                        Log.d(TAG, "Found object by " + field + "=" + value);
+                        if (item != null) {
+                            // Set ID from Firebase key
+                            try {
+                                String key = child.getKey();
+                                Method setIdMethod = item.getClass().getMethod("setId", long.class);
+                                setIdMethod.invoke(item, Long.parseLong(key));
+                                Log.d(TAG, "Found object by " + field + "=" + value);
+                            } catch (Exception e) {
+                                Log.w(TAG, "Could not set ID on object", e);
+                            }
+                        }
                         future.complete(item);
                         return;
                     }
