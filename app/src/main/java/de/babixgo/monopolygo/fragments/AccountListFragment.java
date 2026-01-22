@@ -345,7 +345,13 @@ public class AccountListFragment extends Fragment {
 
     private void openAccountDetail(Account account) {
         Intent intent = new Intent(requireContext(), AccountDetailActivity.class);
+        
+        // Use firebaseKey when available, otherwise use ID
+        if (account.getFirebaseKey() != null && !account.getFirebaseKey().isEmpty()) {
+            intent.putExtra("account_firebase_key", account.getFirebaseKey());
+        }
         intent.putExtra("account_id", account.getId());
+        
         startActivity(intent);
     }
     

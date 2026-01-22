@@ -60,7 +60,8 @@ public class FirebaseManager {
     
     /**
      * Helper method to set ID on an object from Firebase key
-     * Uses reflection to call setId(long id) method
+     * Uses reflection to call setFirebaseKey() and setIdFromString() methods
+     * Falls back to setId(long) for backward compatibility
      * 
      * @param item Object to set ID on
      * @param key Firebase key to use as ID
@@ -72,14 +73,33 @@ public class FirebaseManager {
         }
         
         try {
-            Method setIdMethod = item.getClass().getMethod("setId", long.class);
-            setIdMethod.invoke(item, Long.parseLong(key));
+            // Try setFirebaseKey() method first
+            Method setFirebaseKeyMethod = item.getClass().getMethod("setFirebaseKey", String.class);
+            setFirebaseKeyMethod.invoke(item, key);
+            
+            // Try setIdFromString() for intelligent conversion
+            Method setIdFromStringMethod = item.getClass().getMethod("setIdFromString", String.class);
+            setIdFromStringMethod.invoke(item, key);
+            
+            Log.d(TAG, "Set Firebase key on object: " + key);
         } catch (NoSuchMethodException e) {
-            Log.w(TAG, "Object does not have setId(long) method: " + item.getClass().getName());
-        } catch (NumberFormatException e) {
-            Log.w(TAG, "Firebase key is not a valid number: " + key);
+            // Fallback: Try old setId(long) method with numeric conversion
+            try {
+                Method setIdMethod = item.getClass().getMethod("setId", long.class);
+                setIdMethod.invoke(item, Long.parseLong(key));
+            } catch (NumberFormatException ex) {
+                Log.w(TAG, "Firebase key is not a valid number, using hashCode: " + key);
+                try {
+                    Method setIdMethod = item.getClass().getMethod("setId", long.class);
+                    setIdMethod.invoke(item, Math.abs(key.hashCode()));
+                } catch (Exception ex2) {
+                    Log.w(TAG, "Failed to set ID from key", ex2);
+                }
+            } catch (Exception ex) {
+                Log.w(TAG, "Failed to set ID on object", ex);
+            }
         } catch (Exception e) {
-            Log.w(TAG, "Failed to set ID on object", e);
+            Log.w(TAG, "Failed to set Firebase key on object", e);
         }
     }
     

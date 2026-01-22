@@ -10,6 +10,9 @@ public class Account {
     @SerializedName("id")
     private long id;
     
+    @SerializedName("firebase_key")
+    private String firebaseKey;
+    
     @SerializedName("name")
     private String name;
     
@@ -89,6 +92,28 @@ public class Account {
     // Getters & Setters
     public long getId() { return id; }
     public void setId(long id) { this.id = id; }
+    
+    public String getFirebaseKey() { 
+        return firebaseKey; 
+    }
+    
+    public void setFirebaseKey(String firebaseKey) { 
+        this.firebaseKey = firebaseKey;
+    }
+    
+    /**
+     * Set ID from String - supports both numeric and non-numeric Firebase keys
+     * For non-numeric keys, uses hashCode as fallback
+     */
+    public void setIdFromString(String idString) {
+        this.firebaseKey = idString;
+        try {
+            this.id = Long.parseLong(idString);
+        } catch (NumberFormatException e) {
+            // Firebase key is not a Long - use hashCode as fallback
+            this.id = Math.abs(idString.hashCode());
+        }
+    }
     
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
