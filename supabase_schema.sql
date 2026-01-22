@@ -132,6 +132,38 @@ COMMENT ON COLUMN accounts.is_customer_account IS 'True = Account gehört zu Kun
 COMMENT ON COLUMN accounts.customer_account_id IS 'Verknüpfung zu customer_accounts';
 
 -- ============================================================================
+-- CUSTOMER ACTIVITIES TABLE (Audit Trail & History Tracking)
+-- ============================================================================
+
+CREATE TABLE customer_activities (
+    id BIGSERIAL PRIMARY KEY,
+    customer_id BIGINT REFERENCES customers(id) ON DELETE SET NULL,
+    
+    -- Activity classification
+    activity_type VARCHAR(50) NOT NULL, -- 'create', 'update', 'delete', 'account_add', 'account_update', 'account_delete', 'service_change'
+    activity_category VARCHAR(50) NOT NULL, -- 'customer', 'account', 'service'
+    
+    -- Activity details
+    description TEXT NOT NULL, -- Human-readable description
+    details TEXT, -- JSON with detailed changes
+    
+    -- Related entities
+    customer_account_id BIGINT REFERENCES customer_accounts(id) ON DELETE SET NULL,
+    
+    -- Metadata
+    performed_by VARCHAR(100), -- Optional: user who performed the action
+    
+    -- Timestamp
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+COMMENT ON TABLE customer_activities IS 'Audit trail and activity history for customers';
+COMMENT ON COLUMN customer_activities.activity_type IS 'Type of activity performed';
+COMMENT ON COLUMN customer_activities.activity_category IS 'Category of the activity (customer/account/service)';
+COMMENT ON COLUMN customer_activities.description IS 'Human-readable description of the activity';
+COMMENT ON COLUMN customer_activities.details IS 'Detailed information in JSON format (optional)';
+
+-- ============================================================================
 -- TEAMS TABLE
 -- ============================================================================
 
@@ -200,6 +232,14 @@ CREATE INDEX idx_customers_name ON customers(name);
 -- Customer Accounts
 CREATE INDEX idx_customer_accounts_customer_id ON customer_accounts(customer_id);
 CREATE INDEX idx_customer_accounts_backup_id ON customer_accounts(backup_account_id);
+
+-- Customer Activities
+CREATE INDEX idx_customer_activities_customer_id ON customer_activities(customer_id);
+CREATE INDEX idx_customer_activities_type ON customer_activities(activity_type);
+CREATE INDEX idx_customer_activities_category ON customer_activities(activity_category);
+CREATE INDEX idx_customer_activities_account_id ON customer_activities(customer_account_id);
+CREATE INDEX idx_customer_activities_created_at ON customer_activities(created_at DESC);
+
 
 -- Teams
 CREATE INDEX idx_teams_event ON teams(event_id);
@@ -285,6 +325,7 @@ ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customer_accounts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customer_activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE teams ENABLE ROW LEVEL SECURITY;
 
 -- ⚠️ WARNING: Development/Testing Policies
@@ -307,6 +348,24 @@ CREATE POLICY "Allow all for authenticated users" ON customers
 
 CREATE POLICY "Allow all for authenticated users" ON customer_accounts
     FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
+
+-- Restrictive policies for customer_activities audit table
+CREATE POLICY "Select customer activities for authenticated users" ON customer_activities
+    FOR SELECT
+    USING (auth.role() = 'authenticated');
+
+CREATE POLICY "Insert customer activities for authenticated users" ON customer_activities
+    FOR INSERT
+    WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Update customer activities for authenticated users" ON customer_activities
+    FOR UPDATE
+    USING (auth.role() = 'authenticated')
+    WITH CHECK (auth.role() = 'authenticated');
+
+CREATE POLICY "Delete customer activities for authenticated users" ON customer_activities
+    FOR DELETE
+    USING (auth.role() = 'authenticated');
 
 CREATE POLICY "Allow all for authenticated users" ON teams
     FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
@@ -356,7 +415,8 @@ INSERT INTO schema_version (version, description) VALUES
 (1, 'Initial schema with accounts, events, customers, and teams'),
 (2, 'Simplified suspension tracking - single status field instead of 4 counters'),
 (3, 'Customer management restructure - multi-account support with services'),
-(4, 'Fixed forward reference error - customer_account_id constraint moved to ALTER TABLE');
+(4, 'Fixed forward reference error - customer_account_id constraint moved to ALTER TABLE'),
+(5, 'Added customer_activities table for comprehensive audit trail and activity tracking');
 
 -- ============================================================================
 -- MIGRATION NOTES

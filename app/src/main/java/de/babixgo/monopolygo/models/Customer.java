@@ -2,9 +2,7 @@ package de.babixgo.monopolygo.models;
 
 import com.google.gson.annotations.SerializedName;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Customer model for customer management
@@ -59,20 +57,68 @@ public class Customer {
     
     /**
      * Number of accounts for this customer
-     * TODO: Will be calculated from customer_accounts table
+     * Calculated from loaded accounts list
      */
     public int getAccountCount() {
-        // Stub implementation - returns 0 for now
-        return 0;
+        return accounts != null ? accounts.size() : 0;
     }
     
     /**
      * Returns all services that this customer uses (across all accounts)
      * Format: "Partner / Race / Boost"
-     * TODO: Will be calculated from customer_accounts table
+     * Aggregates services from all accounts in deterministic order
      */
     public String getServicesDisplay() {
-        // Stub implementation - returns "-" for now
-        return "-";
+        if (accounts == null || accounts.isEmpty()) {
+            return "-";
+        }
+        
+        boolean hasPartner = false;
+        boolean hasRace = false;
+        boolean hasBoost = false;
+        
+        for (CustomerAccount account : accounts) {
+            if (account.isServicePartner()) {
+                hasPartner = true;
+            }
+            if (account.isServiceRace()) {
+                hasRace = true;
+            }
+            if (account.isServiceBoost()) {
+                hasBoost = true;
+            }
+        }
+        
+        List<String> services = new ArrayList<>();
+        if (hasPartner) services.add("Partner");
+        if (hasRace) services.add("Race");
+        if (hasBoost) services.add("Boost");
+        
+        return services.isEmpty() ? "-" : String.join(" / ", services);
+    }
+    
+    /**
+     * Get total count of each service across all accounts
+     */
+    public int getServiceCount(String serviceType) {
+        if (accounts == null || accounts.isEmpty()) {
+            return 0;
+        }
+        
+        int count = 0;
+        for (CustomerAccount account : accounts) {
+            switch (serviceType.toLowerCase()) {
+                case "partner":
+                    if (account.isServicePartner()) count++;
+                    break;
+                case "race":
+                    if (account.isServiceRace()) count++;
+                    break;
+                case "boost":
+                    if (account.isServiceBoost()) count++;
+                    break;
+            }
+        }
+        return count;
     }
 }

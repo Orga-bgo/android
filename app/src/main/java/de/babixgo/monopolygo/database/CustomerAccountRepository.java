@@ -19,15 +19,26 @@ import java.util.Locale;
 public class CustomerAccountRepository {
     private static final String TAG = "CustomerAccountRepository";
     private final SupabaseManager supabase;
+    private CustomerActivityRepository activityRepository;
 
     public CustomerAccountRepository() {
         this.supabase = SupabaseManager.getInstance();
+    }
+    
+    /**
+     * Set activity repository for logging (lazy init to avoid circular dependency)
+     */
+    private CustomerActivityRepository getActivityRepository() {
+        if (activityRepository == null) {
+            activityRepository = new CustomerActivityRepository();
+        }
+        return activityRepository;
     }
 
     // ==================== CREATE ====================
     
     /**
-     * Create new customer account
+     * Create new customer account with activity logging
      * Automatically encrypts password before storing
      */
     public CompletableFuture<CustomerAccount> createCustomerAccount(CustomerAccount account) {
@@ -52,6 +63,18 @@ public class CustomerAccountRepository {
                     String decrypted = EncryptionHelper.decrypt(created.getCredentialsPassword());
                     created.setCredentialsPassword(decrypted);
                 }
+                
+                // Log activity with customer_account_id
+                getActivityRepository().logActivity(
+                    created.getCustomerId(),
+                    "account_add",
+                    "account",
+                    "Account hinzugefügt: " + (created.getIngameName() != null ? created.getIngameName() : "Unbekannt"),
+                    created.getId()
+                ).exceptionally(e -> {
+                    Log.e(TAG, "Failed to log activity for account creation", e);
+                    return null;
+                });
                 
                 Log.d(TAG, "Customer account created with ID: " + created.getId());
                 return created;
@@ -131,7 +154,7 @@ public class CustomerAccountRepository {
     // ==================== UPDATE ====================
     
     /**
-     * Update customer account
+     * Update customer account with activity logging
      * Automatically encrypts password if changed
      */
     public CompletableFuture<Void> updateCustomerAccount(CustomerAccount account) {
@@ -147,6 +170,19 @@ public class CustomerAccountRepository {
                     "id=eq." + account.getId(), 
                     json.toString()
                 );
+                
+                // Log activity with customer_account_id
+                getActivityRepository().logActivity(
+                    account.getCustomerId(),
+                    "account_update",
+                    "account",
+                    "Account aktualisiert: " + (account.getIngameName() != null ? account.getIngameName() : "ID " + account.getId()),
+                    account.getId()
+                ).exceptionally(e -> {
+                    Log.e(TAG, "Failed to log activity for account update", e);
+                    return null;
+                });
+                
                 Log.d(TAG, "Customer account updated successfully");
                 
             } catch (Exception e) {
@@ -184,12 +220,29 @@ public class CustomerAccountRepository {
     // ==================== DELETE ====================
     
     /**
-     * Delete customer account
+     * Delete customer account with activity logging
      */
-    public CompletableFuture<Void> deleteCustomerAccount(String id) {
+    public CompletableFuture<Void> deleteCustomerAccount(long id) {
         return CompletableFuture.runAsync(() -> {
             try {
                 Log.d(TAG, "Deleting customer account: " + id);
+                
+                // Get account info before deleting for activity log
+                CustomerAccount account = supabase.selectSingle("customer_accounts", CustomerAccount.class, "id=eq." + id);
+                
+                if (account != null) {
+                    // Log activity before deletion with customer_account_id
+                    getActivityRepository().logActivity(
+                        account.getCustomerId(),
+                        "account_delete",
+                        "account",
+                        "Account gelöscht: " + (account.getIngameName() != null ? account.getIngameName() : "ID " + id),
+                        id
+                    ).exceptionally(e -> {
+                        Log.e(TAG, "Failed to log activity for account deletion", e);
+                        return null;
+                    });
+                }
                 
                 supabase.delete("customer_accounts", "id=eq." + id);
                 Log.d(TAG, "Customer account deleted successfully");
