@@ -121,4 +121,42 @@ public class Customer {
         }
         return count;
     }
+    
+    // Firebase-compatible timestamp helpers
+    
+    /**
+     * Get created_at as Unix timestamp (milliseconds)
+     */
+    public long getCreatedAtTimestamp() {
+        try {
+            return Long.parseLong(createdAt);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+    
+    /**
+     * Set created_at from Unix timestamp (milliseconds)
+     */
+    public void setCreatedAtTimestamp(long timestamp) {
+        this.createdAt = String.valueOf(timestamp);
+    }
+    
+    /**
+     * Get updated_at as Unix timestamp (milliseconds)
+     */
+    public long getUpdatedAtTimestamp() {
+        try {
+            return Long.parseLong(updatedAt);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+    
+    /**
+     * Set updated_at from Unix timestamp (milliseconds)
+     */
+    public void setUpdatedAtTimestamp(long timestamp) {
+        this.updatedAt = String.valueOf(timestamp);
+    }
 }

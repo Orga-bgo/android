@@ -122,4 +122,24 @@ public class CustomerActivity {
             default: return "Sonstiges";
         }
     }
+    
+    // Firebase-compatible timestamp helpers
+    
+    /**
+     * Get created_at as Unix timestamp (milliseconds)
+     */
+    public long getCreatedAtTimestamp() {
+        try {
+            return Long.parseLong(createdAt);
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+    
+    /**
+     * Set created_at from Unix timestamp (milliseconds)
+     */
+    public void setCreatedAtTimestamp(long timestamp) {
+        this.createdAt = String.valueOf(timestamp);
+    }
 }
