@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "697363134256",
+    "firebase_url": "https://babixgo-production-default-rtdb.europe-west1.firebasedatabase.app",
+    "project_id": "babixgo-production",
+    "storage_bucket": "babixgo-production.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:697363134256:android:80b5fdc5265ad97059baf5",
+        "android_client_info": {
+          "package_name": "de.babixgo.monopolygo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQ35Vo5x9-L6ekjwwoCA-fA52q-tGMypQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
