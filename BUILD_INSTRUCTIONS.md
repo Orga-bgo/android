@@ -17,6 +17,16 @@ This document provides detailed instructions for building the MonopolyGo Manager
    - Minimum API Level 21 (Android 5.0)
    - Target API Level 33 (Android 13)
 
+4. **Firebase Project** (optional, for cloud features)
+   - Create at: [Firebase Console](https://console.firebase.google.com)
+   - Download `google-services.json`
+   - Place in `app/` directory
+   - See [FIREBASE_SETUP.md](FIREBASE_SETUP.md) for details
+
+5. **Rooted Android Device** (for testing)
+   - SuperSU or Magisk installed
+   - Root access granted to app
+
 ### Optional Tools
 - **Git** for version control
 - **Gradle 8.0+** (included in project wrapper)

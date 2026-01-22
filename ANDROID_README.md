@@ -94,6 +94,14 @@ Alle kritischen Dateien befinden sich in geschützten Verzeichnissen:
 └── Backups/            # Backup-Dateien
 ```
 
+## 🔥 Backend
+
+### Firebase Realtime Database
+- Firebase Realtime Database for cloud storage
+  - Offline-first architecture
+  - Automatic synchronization
+  - Real-time updates across devices
+
 ## 📦 Dependencies
 
 Die App verwendet folgende Libraries:
@@ -101,6 +109,11 @@ Die App verwendet folgende Libraries:
 ```gradle
 // Root-Zugriff
 implementation 'com.github.topjohnwu.libsu:core:5.0.1'
+
+// Firebase
+implementation platform('com.google.firebase:firebase-bom:32.7.0')
+implementation 'com.google.firebase:firebase-database'
+implementation 'com.google.firebase:firebase-auth'
 
 // HTTP-Requests (Short.io API)
 implementation 'com.squareup.okhttp3:okhttp:4.11.0'
@@ -118,40 +131,51 @@ implementation 'com.google.android.material:material:1.9.0'
 
 ## 🚀 Build-Anleitung
 
-### Voraussetzungen
-- Android Studio Arctic Fox (2020.3.1) oder neuer
-- JDK 8 oder höher
-- Android SDK API 33
+## Setup Instructions
 
-### Build-Schritte
+### 1. Development Environment
+- Android Studio Arctic Fox or later
+- JDK 17
+- Android SDK (API 21-34)
+- Git
 
-1. **Projekt klonen**:
-```bash
-git clone https://github.com/babix555/Bgo.git
-cd Bgo
-```
+### 2. Firebase Configuration
 
-2. **Android Studio öffnen**:
-   - Öffne Android Studio
-   - Wähle "Open an Existing Project"
-   - Navigiere zum Projekt-Ordner
+**Required for cloud features** (optional):
 
-3. **Gradle Sync**:
-   - Android Studio synchronisiert automatisch
-   - Falls nicht: File → Sync Project with Gradle Files
+1. Create Firebase project: [console.firebase.google.com](https://console.firebase.google.com)
+2. Add Android app: `de.babixgo.monopolygo`
+3. Download `google-services.json`
+4. Place in: `app/google-services.json`
 
-4. **APK erstellen**:
-   - Build → Build Bundle(s) / APK(s) → Build APK(s)
-   - APK findet sich unter: `app/build/outputs/apk/debug/app-debug.apk`
+**Detailed guide**: See [FIREBASE_SETUP.md](FIREBASE_SETUP.md)
 
-### Alternative: Kommandozeile
+### 3. Build
 
 ```bash
-# Debug-APK erstellen
+# Clone repository
+git clone https://github.com/Orga-bgo/android.git
+cd android
+
+# Gradle sync
+./gradlew --refresh-dependencies
+
+# Build debug APK
 ./gradlew assembleDebug
 
-# Release-APK erstellen (signiert)
-./gradlew assembleRelease
+# Output: app/build/outputs/apk/debug/app-debug.apk
+```
+
+### 4. Install & Run
+
+```bash
+# Install on device
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+
+# Grant root access when prompted (SuperSU/Magisk)
+
+# Run app
+adb shell am start -n de.babixgo.monopolygo/.MainActivity
 ```
 
 ## 🔐 Sicherheit
