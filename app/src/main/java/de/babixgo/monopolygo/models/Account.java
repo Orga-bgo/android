@@ -190,9 +190,17 @@ public class Account {
      * Format last played date for UI
      */
     public String getFormattedLastPlayed() {
-        if (lastPlayed == null) return "Nie gespielt";
+        if (lastPlayed == null || lastPlayed.isEmpty()) {
+            return "Nie gespielt";
+        }
+        
+        // Handle "0" as a special case
+        if (lastPlayed.equals("0")) {
+            return "Nie gespielt";
+        }
         
         try {
+            // Try parsing as ISO 8601 format first
             java.text.SimpleDateFormat inputFormat = 
                 new java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.GERMAN);
             java.text.SimpleDateFormat outputFormat = 
@@ -201,7 +209,16 @@ public class Account {
             java.util.Date date = inputFormat.parse(lastPlayed);
             return outputFormat.format(date);
         } catch (Exception e) {
-            return lastPlayed;
+            // Try parsing as Unix timestamp (milliseconds)
+            try {
+                long timestamp = Long.parseLong(lastPlayed);
+                java.text.SimpleDateFormat outputFormat = 
+                    new java.text.SimpleDateFormat("dd.MM.yyyy, HH:mm", java.util.Locale.GERMAN);
+                return outputFormat.format(new java.util.Date(timestamp));
+            } catch (Exception ex) {
+                // If all parsing fails, return the raw value
+                return lastPlayed;
+            }
         }
     }
     

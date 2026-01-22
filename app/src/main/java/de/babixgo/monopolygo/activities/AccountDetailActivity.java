@@ -76,6 +76,13 @@ public class AccountDetailActivity extends AppCompatActivity {
         
         repository.getAccountById(accountId)
             .thenAccept(loadedAccount -> runOnUiThread(() -> {
+                if (loadedAccount == null) {
+                    Toast.makeText(this, 
+                        "Fehler beim Laden: Account nicht gefunden", 
+                        Toast.LENGTH_LONG).show();
+                    finish();
+                    return;
+                }
                 account = loadedAccount;
                 displayAccount();
             }))
@@ -91,7 +98,14 @@ public class AccountDetailActivity extends AppCompatActivity {
     }
     
     private void displayAccount() {
-        tvAccountName.setText(account.getName());
+        // Null-safety check
+        if (account == null) {
+            Toast.makeText(this, "Fehler: Account-Daten nicht geladen", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+        
+        tvAccountName.setText(account.getName() != null ? account.getName() : "Unbekannt");
         tvUserId.setText("MoGo User ID: " + (account.getUserId() != null ? account.getUserId() : "N/A"));
         tvLastPlayed.setText(account.getFormattedLastPlayed());
         
@@ -109,6 +123,11 @@ public class AccountDetailActivity extends AppCompatActivity {
     }
     
     private void showRestoreConfirmation() {
+        if (account == null) {
+            Toast.makeText(this, "Fehler: Account-Daten nicht verfügbar", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
         new AlertDialog.Builder(this)
             .setTitle("Account wiederherstellen")
             .setMessage("Möchten Sie " + account.getName() + " wiederherstellen?\n\nMonopolyGo wird gestoppt und der Account wird aktiviert.")
@@ -118,6 +137,11 @@ public class AccountDetailActivity extends AppCompatActivity {
     }
     
     private void performRestore() {
+        if (account == null) {
+            Toast.makeText(this, "Fehler: Account-Daten nicht verfügbar", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
         Toast.makeText(this, "Wiederherstelle " + account.getName() + "...", Toast.LENGTH_SHORT).show();
         
         new Thread(() -> {
@@ -152,6 +176,11 @@ public class AccountDetailActivity extends AppCompatActivity {
     }
     
     private void toggleEditMode() {
+        if (account == null) {
+            Toast.makeText(this, "Fehler: Account-Daten nicht verfügbar", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_edit_account, null);
         
         // Initialize views
@@ -243,6 +272,11 @@ public class AccountDetailActivity extends AppCompatActivity {
     }
     
     private void showDeleteConfirmation() {
+        if (account == null) {
+            Toast.makeText(this, "Fehler: Account-Daten nicht verfügbar", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
         new AlertDialog.Builder(this)
             .setTitle("Account löschen")
             .setMessage("Möchten Sie " + account.getName() + " wirklich löschen?\n\nDieser Vorgang kann nicht rückgängig gemacht werden.")
