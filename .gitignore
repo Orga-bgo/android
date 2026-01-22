@@ -1,4 +1,7 @@
-# Android build artifacts
+# ============================================================================
+# Android Build Artifacts
+# ============================================================================
+
 *.iml
 .gradle
 /local.properties
@@ -13,35 +16,64 @@
 *.ap_
 *.aab
 
-# Gradle wrapper
-# Note: gradle-wrapper.jar should be committed (it's required)
-
-# Secrets
-app/src/main/res/values/secrets.xml
-
-# Supabase credentials (if you add real ones)
-# Uncomment the line below if you store real Supabase credentials in gradle.properties
-# gradle.properties
-
-# Logs
-*.log
-
 # Generated files
 bin/
 gen/
 out/
 
-# Keystore files
+# Gradle wrapper
+# Note: gradle-wrapper.jar should be committed (it's required)
+
+# ============================================================================
+# Secrets & Keystores
+# ============================================================================
+
+# Android signing keystore
 *.jks
 *.keystore
+keystore.properties
 
-# Old backup files from Phase 1 restructure
-*_old.xml
+# API keys and secrets
+app/src/main/res/values/secrets.xml
+secrets.xml
+local.properties
 
-# Firebase
+# ============================================================================
+# Logs
+# ============================================================================
+
+*.log
+
+# ============================================================================
+# Firebase Configuration
+# ============================================================================
+
+# google-services.json contains sensitive Firebase project configuration
+# Each developer must download their own copy from Firebase Console
 app/google-services.json
 google-services.json
 
-# Old Supabase files (cleanup)
+# Firebase local state (generated during development)
+.firebase/
+*-firebase-debug.log
+firebase-debug.log
+firebase-debug.*.log
+
+# ============================================================================
+# Old Supabase Files (Migration Cleanup)
+# ============================================================================
+
+# SQL schema files from old Supabase integration
 *supabase*.sql
+supabase_*.sql
+
+# Old Supabase documentation
 SUPABASE*.md
+*SUPABASE*.md
+
+# Old Supabase migration scripts
+migration_*.sql
+verify_*.sql
+
+# Old backup files from Phase 1 restructure
+*_old.xml

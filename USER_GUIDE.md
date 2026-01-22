@@ -325,6 +325,17 @@ Automate friendship bar events.
 - Automatic installation
 - Event participation automation
 
+## Cloud-Synchronisation
+
+Die App synchronisiert automatisch mit Firebase Realtime Database, wenn:
+- Internet-Verbindung besteht
+- `google-services.json` konfiguriert ist
+- Firebase-Projekt erstellt wurde
+
+Ohne Internet funktionieren alle lokalen Funktionen (Backup/Restore) weiterhin.
+
+**Firebase Setup**: Siehe [FIREBASE_SETUP.md](FIREBASE_SETUP.md) für detaillierte Anweisungen.
+
 ## Troubleshooting
 
 ### App Won't Start
