@@ -37,3 +37,11 @@ out/
 
 # Old backup files from Phase 1 restructure
 *_old.xml
+
+# Firebase
+app/google-services.json
+google-services.json
+
+# Old Supabase files (cleanup)
+*supabase*.sql
+SUPABASE*.md
