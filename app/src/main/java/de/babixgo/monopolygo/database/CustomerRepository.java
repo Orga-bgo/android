@@ -35,7 +35,7 @@ public class CustomerRepository {
      */
     public CompletableFuture<List<Customer>> getAllCustomers(boolean loadAccounts) {
         return firebase.getAll(COLLECTION, Customer.class)
-            .thenApply(customers -> {
+            .thenCompose(customers -> {
                 // Sort by name client-side
                 List<Customer> sortedCustomers = customers.stream()
                     .sorted((a, b) -> {
@@ -68,9 +68,11 @@ public class CustomerRepository {
                     }
 
                     // Wait for all account-loading operations to complete
-                    CompletableFuture.allOf(accountFutures.toArray(new CompletableFuture[0])).join();
+                    return CompletableFuture.allOf(accountFutures.toArray(new CompletableFuture[0]))
+                        .thenApply(v -> sortedCustomers);
                 }
-                return sortedCustomers;
+                
+                return CompletableFuture.completedFuture(sortedCustomers);
             });
     }
     
@@ -87,19 +89,21 @@ public class CustomerRepository {
      */
     public CompletableFuture<Customer> getCustomerById(long id, boolean loadAccounts) {
         return firebase.getById(COLLECTION, String.valueOf(id), Customer.class)
-            .thenApply(customer -> {
+            .thenCompose(customer -> {
                 if (loadAccounts && customer != null) {
-                    try {
-                        List<de.babixgo.monopolygo.models.CustomerAccount> accounts = 
-                            accountRepository.getAccountsByCustomerId(customer.getId()).get();
-                        customer.setAccounts(accounts);
-                    } catch (Exception e) {
-                        Log.e(TAG, "Failed to load accounts for customer: " + id, e);
-                        customer.setAccounts(new ArrayList<>());
-                    }
+                    return accountRepository.getAccountsByCustomerId(customer.getId())
+                        .thenApply(accounts -> {
+                            customer.setAccounts(accounts);
+                            return customer;
+                        })
+                        .exceptionally(e -> {
+                            Log.e(TAG, "Failed to load accounts for customer: " + id, (Throwable) e);
+                            customer.setAccounts(new ArrayList<>());
+                            return customer;
+                        });
                 }
                 
-                return customer;
+                return CompletableFuture.completedFuture(customer);
             });
     }
     
