@@ -219,6 +219,89 @@ public class FirebaseManager {
     }
     
     /**
+     * Query with simple orderBy (basic example)
+     * Für komplexere Queries: QueryBuilder verwenden
+     */
+    public <T> CompletableFuture<List<T>> query(String collection, String orderBy, Class<T> clazz) {
+        CompletableFuture<List<T>> future = new CompletableFuture<>();
+        
+        getReference(collection)
+            .orderByChild(orderBy)
+            .addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot snapshot) {
+                    List<T> items = new ArrayList<>();
+                    for (DataSnapshot child : snapshot.getChildren()) {
+                        T item = child.getValue(clazz);
+                        if (item != null) {
+                            items.add(item);
+                        }
+                    }
+                    future.complete(items);
+                }
+                
+                @Override
+                public void onCancelled(DatabaseError error) {
+                    future.completeExceptionally(
+                        new RuntimeException("Firebase query failed: " + error.getMessage())
+                    );
+                }
+            });
+        
+        return future;
+    }
+    
+    /**
+     * Realtime Listener (NEU - nicht in Supabase!)
+     * Updates werden automatisch gepusht
+     * 
+     * WICHTIG: Listener bleibt aktiv bis removeEventListener() aufgerufen wird
+     * 
+     * Beispiel:
+     * firebaseManager.addRealtimeListener("accounts", Account.class, new RealtimeListener<Account>() {
+     *     @Override
+     *     public void onDataChanged(List<Account> items) {
+     *         // UI automatisch aktualisieren
+     *         adapter.setAccounts(items);
+     *     }
+     *     
+     *     @Override
+     *     public void onError(Exception e) {
+     *         Log.e(TAG, "Realtime update failed", e);
+     *     }
+     * });
+     */
+    public <T> void addRealtimeListener(String collection, Class<T> clazz, 
+                                        RealtimeListener<T> listener) {
+        getReference(collection).addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot snapshot) {
+                List<T> items = new ArrayList<>();
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    T item = child.getValue(clazz);
+                    if (item != null) {
+                        items.add(item);
+                    }
+                }
+                listener.onDataChanged(items);
+            }
+            
+            @Override
+            public void onCancelled(DatabaseError error) {
+                listener.onError(error.toException());
+            }
+        });
+    }
+    
+    /**
+     * Interface for realtime data updates
+     */
+    public interface RealtimeListener<T> {
+        void onDataChanged(List<T> items);
+        void onError(Exception e);
+    }
+    
+    /**
      * Query Builder for constructing Firebase queries
      */
     public static class QueryBuilder {
