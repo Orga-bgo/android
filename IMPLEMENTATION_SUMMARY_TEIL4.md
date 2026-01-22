@@ -1,5 +1,9 @@
 # Tycoon Racers Event Management - Teil 4 Implementation Summary
 
+> **⚠️ HINWEIS**: Diese Dokumentation wurde für die alte Supabase-Integration erstellt. 
+> Ab Version 1.1.0 verwendet die App **Firebase Realtime Database**.
+> Siehe [FIREBASE_SETUP.md](FIREBASE_SETUP.md) für aktuelle Setup-Anleitung.
+
 ## Overview
 This document summarizes the implementation of Teil 4 (Part 4) - Tycoon Racers Event Management feature for the MonopolyGo Android application.
 

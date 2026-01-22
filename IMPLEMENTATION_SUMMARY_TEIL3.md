@@ -1,5 +1,9 @@
 # Implementation Summary - Teil 3: Account Edit & Integration
 
+> **⚠️ HINWEIS**: Diese Dokumentation wurde für die alte Supabase-Integration erstellt. 
+> Ab Version 1.1.0 verwendet die App **Firebase Realtime Database**.
+> Siehe [FIREBASE_SETUP.md](FIREBASE_SETUP.md) für aktuelle Setup-Anleitung.
+
 ## Overview
 This document summarizes the implementation of Part 3 of the Account Management feature, which includes the Account Edit Dialog and extended AccountManagement Activity integration.
 

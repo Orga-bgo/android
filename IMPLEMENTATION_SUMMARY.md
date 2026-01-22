@@ -1,5 +1,9 @@
 # ✅ IMPLEMENTATION SUMMARY: Customer Management Features
 
+> **⚠️ HINWEIS**: Diese Dokumentation wurde für die alte Supabase-Integration erstellt. 
+> Ab Version 1.1.0 verwendet die App **Firebase Realtime Database**.
+> Siehe [FIREBASE_SETUP.md](FIREBASE_SETUP.md) für aktuelle Setup-Anleitung.
+
 **Projekt**: babixGO MonopolyGo Manager  
 **Implementation**: Comprehensive Customer Management with Activity Tracking  
 **Status**: ✅ VOLLSTÄNDIG IMPLEMENTIERT UND PRODUKTIONSREIF  
