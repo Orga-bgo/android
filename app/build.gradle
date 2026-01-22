@@ -1,5 +1,6 @@
 plugins {
     id 'com.android.application'
+    id 'com.google.gms.google-services'
 }
 
 android {
@@ -12,11 +13,6 @@ android {
         targetSdk 33
         versionCode 2
         versionName "1.1.0"
-        
-        // Supabase Configuration
-        // Priority: Environment variables (SB_URL, SB_KEY) > gradle.properties (SUPABASE_URL, SUPABASE_ANON_KEY)
-        buildConfigField "String", "SUPABASE_URL", "\"${System.getenv('SUPABASE_URL') ?: project.findProperty('SUPABASE_URL') ?: ''}\""
-        buildConfigField "String", "SUPABASE_ANON_KEY", "\"${System.getenv('SUPABASE_ANON_KEY') ?: project.findProperty('SUPABASE_ANON_KEY') ?: ''}\""
     }
 
     buildTypes {
@@ -41,15 +37,12 @@ dependencies {
     // Root access library
     implementation 'com.github.topjohnwu.libsu:core:5.2.2'
     
-    // HTTP client for Short.io API and Supabase
-    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
-    
     // CSV processing
     implementation('com.opencsv:opencsv:5.9') {
         exclude group: 'commons-logging', module: 'commons-logging'
     }
     
-    // JSON processing
+    // JSON processing (keep for Firebase serialization)
     implementation 'com.google.code.gson:gson:2.10.1'
     
     // Android support libraries
@@ -74,4 +67,13 @@ dependencies {
     
     // NEW: Google Play Services (for GAID)
     implementation 'com.google.android.gms:play-services-ads-identifier:18.0.1'
+    
+    // Firebase BOM (Bill of Materials) - manages all Firebase versions
+    implementation platform('com.google.firebase:firebase-bom:32.7.0')
+    
+    // Firebase Realtime Database
+    implementation 'com.google.firebase:firebase-database'
+    
+    // Firebase Authentication (optional, recommended)
+    implementation 'com.google.firebase:firebase-auth'
 }
