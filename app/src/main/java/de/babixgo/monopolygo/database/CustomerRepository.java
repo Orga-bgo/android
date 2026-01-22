@@ -33,21 +33,31 @@ public class CustomerRepository {
             try {
                 ensureConfigured();
                 List<Customer> customers = supabase.select("customers", Customer.class, "order=name.asc");
-                
+
                 if (loadAccounts) {
-                    // Load accounts for each customer
+                    // Load accounts for each customer in parallel and wait for all to complete
+                    List<CompletableFuture<Void>> accountFutures = new ArrayList<>();
                     for (Customer customer : customers) {
-                        try {
-                            List<de.babixgo.monopolygo.models.CustomerAccount> accounts = 
-                                accountRepository.getAccountsByCustomerId(customer.getId()).get();
-                            customer.setAccounts(accounts);
-                        } catch (Exception e) {
-                            // Log error but continue with other customers
-                            customer.setAccounts(new ArrayList<>());
-                        }
+                        CompletableFuture<Void> future = accountRepository
+                                .getAccountsByCustomerId(customer.getId())
+                                .thenAccept(accounts -> {
+                                    if (accounts != null) {
+                                        customer.setAccounts(accounts);
+                                    } else {
+                                        customer.setAccounts(new ArrayList<>());
+                                    }
+                                })
+                                .exceptionally(e -> {
+                                    // Log error but continue with other customers
+                                    customer.setAccounts(new ArrayList<>());
+                                    return null;
+                                });
+                        accountFutures.add(future);
                     }
+
+                    // Wait for all account-loading operations to complete
+                    CompletableFuture.allOf(accountFutures.toArray(new CompletableFuture[0])).join();
                 }
-                
                 return customers;
             } catch (IOException e) {
                 throw wrapIOException("Fehler beim Laden der Kunden", e);
