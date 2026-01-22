@@ -58,7 +58,20 @@ public class AccountRepository {
      * Account nach ID laden
      */
     public CompletableFuture<Account> getAccountById(long id) {
-        return firebase.getById(COLLECTION, String.valueOf(id), Account.class);
+        // Try direct ID query first
+        return firebase.getById(COLLECTION, String.valueOf(id), Account.class)
+            .thenCompose(account -> {
+                if (account != null) {
+                    return CompletableFuture.completedFuture(account);
+                }
+                
+                // Fallback: Search in all accounts by ID
+                return firebase.getAll(COLLECTION, Account.class)
+                    .thenApply(accounts -> accounts.stream()
+                        .filter(a -> a.getId() == id)
+                        .findFirst()
+                        .orElse(null));
+            });
     }
     
     /**
@@ -66,6 +79,20 @@ public class AccountRepository {
      */
     public CompletableFuture<Account> getAccountByName(String name) {
         return firebase.getByField(COLLECTION, "name", name, Account.class)
+            .thenApply(account -> {
+                // Filter out deleted accounts
+                if (account != null && (account.getDeletedAt() == null || account.getDeletedAt().isEmpty())) {
+                    return account;
+                }
+                return null;
+            });
+    }
+    
+    /**
+     * Account nach Firebase Key laden
+     */
+    public CompletableFuture<Account> getAccountByFirebaseKey(String firebaseKey) {
+        return firebase.getById(COLLECTION, firebaseKey, Account.class)
             .thenApply(account -> {
                 // Filter out deleted accounts
                 if (account != null && (account.getDeletedAt() == null || account.getDeletedAt().isEmpty())) {

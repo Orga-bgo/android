@@ -67,34 +67,60 @@ public class AccountDetailActivity extends AppCompatActivity {
     }
     
     private void loadAccount() {
+        // Try firebaseKey first, fallback to numeric ID
+        String firebaseKey = getIntent().getStringExtra("account_firebase_key");
         long accountId = getIntent().getLongExtra("account_id", -1);
-        if (accountId == -1) {
+        
+        if (firebaseKey != null && !firebaseKey.isEmpty()) {
+            // Load directly via Firebase Key
+            repository.getAccountByFirebaseKey(firebaseKey)
+                .thenAccept(loadedAccount -> runOnUiThread(() -> {
+                    if (loadedAccount == null) {
+                        Toast.makeText(this, 
+                            "Fehler beim Laden: Account nicht gefunden", 
+                            Toast.LENGTH_LONG).show();
+                        finish();
+                        return;
+                    }
+                    account = loadedAccount;
+                    displayAccount();
+                }))
+                .exceptionally(throwable -> {
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, 
+                            "Fehler beim Laden: " + throwable.getMessage(), 
+                            Toast.LENGTH_LONG).show();
+                        finish();
+                    });
+                    return null;
+                });
+        } else if (accountId != -1) {
+            // Fallback to numeric ID
+            repository.getAccountById(accountId)
+                .thenAccept(loadedAccount -> runOnUiThread(() -> {
+                    if (loadedAccount == null) {
+                        Toast.makeText(this, 
+                            "Fehler beim Laden: Account nicht gefunden", 
+                            Toast.LENGTH_LONG).show();
+                        finish();
+                        return;
+                    }
+                    account = loadedAccount;
+                    displayAccount();
+                }))
+                .exceptionally(throwable -> {
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, 
+                            "Fehler beim Laden: " + throwable.getMessage(), 
+                            Toast.LENGTH_LONG).show();
+                        finish();
+                    });
+                    return null;
+                });
+        } else {
             Toast.makeText(this, "Fehler: Keine Account-ID", Toast.LENGTH_SHORT).show();
             finish();
-            return;
         }
-        
-        repository.getAccountById(accountId)
-            .thenAccept(loadedAccount -> runOnUiThread(() -> {
-                if (loadedAccount == null) {
-                    Toast.makeText(this, 
-                        "Fehler beim Laden: Account nicht gefunden", 
-                        Toast.LENGTH_LONG).show();
-                    finish();
-                    return;
-                }
-                account = loadedAccount;
-                displayAccount();
-            }))
-            .exceptionally(throwable -> {
-                runOnUiThread(() -> {
-                    Toast.makeText(this, 
-                        "Fehler beim Laden: " + throwable.getMessage(), 
-                        Toast.LENGTH_LONG).show();
-                    finish();
-                });
-                return null;
-            });
     }
     
     private void displayAccount() {
