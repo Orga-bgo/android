@@ -10,6 +10,8 @@ import com.google.firebase.database.Query;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.lang.reflect.Method;
+import java.util.Map;
 
 /**
  * Firebase Realtime Database Manager
@@ -121,20 +123,38 @@ public class FirebaseManager {
     }
     
     /**
-     * Get single item by ID
+     * Get single object by ID
+     * 
+     * @param collection Collection path
+     * @param id Object ID
+     * @param clazz Class type for deserialization
+     * @return CompletableFuture with object or null if not found
      */
     public <T> CompletableFuture<T> getById(String collection, String id, Class<T> clazz) {
         CompletableFuture<T> future = new CompletableFuture<>();
+        
+        if (!configured) {
+            future.completeExceptionally(
+                new RuntimeException("Firebase ist nicht konfiguriert")
+            );
+            return future;
+        }
         
         getReference(collection).child(id).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(DataSnapshot snapshot) {
                 T item = snapshot.getValue(clazz);
+                if (item != null) {
+                    Log.d(TAG, "Found object in " + collection + "/" + id);
+                } else {
+                    Log.d(TAG, "No object found in " + collection + "/" + id);
+                }
                 future.complete(item);
             }
             
             @Override
             public void onCancelled(DatabaseError error) {
+                Log.e(TAG, "getById failed: " + error.getMessage());
                 future.completeExceptionally(
                     new RuntimeException("Firebase read failed: " + error.getMessage())
                 );
@@ -145,30 +165,58 @@ public class FirebaseManager {
     }
     
     /**
-     * Get single item by field value
+     * Get single object by field value
+     * Returns first matching object
+     * 
+     * @param collection Collection path
+     * @param field Field name to query
+     * @param value Value to match
+     * @param clazz Class type for deserialization
+     * @return CompletableFuture with object or null if not found
      */
-    public <T> CompletableFuture<T> getByField(String collection, String fieldName, Object fieldValue, Class<T> clazz) {
+    public <T> CompletableFuture<T> getByField(String collection, String field, Object value, Class<T> clazz) {
         CompletableFuture<T> future = new CompletableFuture<>();
         
-        getReference(collection)
-            .orderByChild(fieldName)
-            .equalTo(fieldValue.toString())
-            .limitToFirst(1)
+        if (!configured) {
+            future.completeExceptionally(
+                new RuntimeException("Firebase ist nicht konfiguriert")
+            );
+            return future;
+        }
+        
+        Query query = getReference(collection).orderByChild(field);
+        
+        // Handle different value types for Firebase equalTo
+        if (value instanceof String) {
+            query = query.equalTo((String) value);
+        } else if (value instanceof Number) {
+            query = query.equalTo(((Number) value).doubleValue());
+        } else if (value instanceof Boolean) {
+            query = query.equalTo((Boolean) value);
+        } else {
+            // Fallback to string representation
+            query = query.equalTo(value.toString());
+        }
+        
+        query.limitToFirst(1)
             .addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(DataSnapshot snapshot) {
-                    T item = null;
                     for (DataSnapshot child : snapshot.getChildren()) {
-                        item = child.getValue(clazz);
-                        break; // Get first item only
+                        T item = child.getValue(clazz);
+                        Log.d(TAG, "Found object by " + field + "=" + value);
+                        future.complete(item);
+                        return;
                     }
-                    future.complete(item);
+                    Log.d(TAG, "No object found by " + field + "=" + value);
+                    future.complete(null);
                 }
                 
                 @Override
                 public void onCancelled(DatabaseError error) {
+                    Log.e(TAG, "getByField failed: " + error.getMessage());
                     future.completeExceptionally(
-                        new RuntimeException("Firebase read failed: " + error.getMessage())
+                        new RuntimeException("Firebase query failed: " + error.getMessage())
                     );
                 }
             });
@@ -177,43 +225,112 @@ public class FirebaseManager {
     }
     
     /**
-     * Create or update item
-     * Auto-generiert ID wenn nicht vorhanden
+     * Save or update object in Firebase
+     * Automatically handles ID generation for new objects
+     * 
+     * @param collection Collection path (e.g. "accounts")
+     * @param object Object to save
+     * @param id Optional ID (null for auto-generate)
+     * @return CompletableFuture with saved object (including generated ID)
      */
-    public <T> CompletableFuture<T> save(String collection, T item, String id) {
+    public <T> CompletableFuture<T> save(String collection, T object, String id) {
         CompletableFuture<T> future = new CompletableFuture<>();
         
-        String itemId = (id != null) ? id : getReference(collection).push().getKey();
+        if (!configured) {
+            future.completeExceptionally(
+                new RuntimeException("Firebase ist nicht konfiguriert")
+            );
+            return future;
+        }
         
-        getReference(collection).child(itemId).setValue(item)
-            .addOnSuccessListener(aVoid -> future.complete(item))
-            .addOnFailureListener(future::completeExceptionally);
+        DatabaseReference ref = getReference(collection);
+        DatabaseReference itemRef = (id != null) ? ref.child(id) : ref.push();
+        
+        itemRef.setValue(object)
+            .addOnSuccessListener(aVoid -> {
+                // Set ID on object if it has setId method
+                try {
+                    String generatedId = itemRef.getKey();
+                    Method setIdMethod = object.getClass().getMethod("setId", long.class);
+                    setIdMethod.invoke(object, Long.parseLong(generatedId));
+                    Log.d(TAG, "Saved object to " + collection + "/" + generatedId);
+                } catch (Exception e) {
+                    Log.w(TAG, "Could not set ID on object", e);
+                }
+                future.complete(object);
+            })
+            .addOnFailureListener(e -> {
+                Log.e(TAG, "Save failed: " + e.getMessage());
+                future.completeExceptionally(
+                    new RuntimeException("Firebase save failed: " + e.getMessage())
+                );
+            });
         
         return future;
     }
     
     /**
-     * Update specific fields
+     * Update specific fields of an object
+     * Does NOT overwrite the entire object
+     * 
+     * @param collection Collection path
+     * @param id Object ID
+     * @param updates Map of field names to new values
+     * @return CompletableFuture that completes when update is done
      */
-    public CompletableFuture<Void> updateFields(String collection, String id, java.util.Map<String, Object> updates) {
+    public CompletableFuture<Void> updateFields(String collection, String id, Map<String, Object> updates) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         
+        if (!configured) {
+            future.completeExceptionally(
+                new RuntimeException("Firebase ist nicht konfiguriert")
+            );
+            return future;
+        }
+        
         getReference(collection).child(id).updateChildren(updates)
-            .addOnSuccessListener(aVoid -> future.complete(null))
-            .addOnFailureListener(future::completeExceptionally);
+            .addOnSuccessListener(aVoid -> {
+                Log.d(TAG, "Updated " + updates.size() + " fields in " + collection + "/" + id);
+                future.complete(null);
+            })
+            .addOnFailureListener(e -> {
+                Log.e(TAG, "updateFields failed: " + e.getMessage());
+                future.completeExceptionally(
+                    new RuntimeException("Firebase update failed: " + e.getMessage())
+                );
+            });
         
         return future;
     }
     
     /**
-     * Delete item
+     * Delete object by ID
+     * 
+     * @param collection Collection path
+     * @param id Object ID
+     * @return CompletableFuture that completes when deletion is done
      */
     public CompletableFuture<Void> delete(String collection, String id) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         
+        if (!configured) {
+            future.completeExceptionally(
+                new RuntimeException("Firebase ist nicht konfiguriert")
+            );
+            return future;
+        }
+        
         getReference(collection).child(id).removeValue()
-            .addOnSuccessListener(aVoid -> future.complete(null))
-            .addOnFailureListener(future::completeExceptionally);
+            .addOnSuccessListener(aVoid -> {
+                Log.d(TAG, "Deleted object from " + collection + "/" + id);
+                future.complete(null);
+            })
+            .addOnFailureListener(e -> {
+                Log.e(TAG, "delete failed: " + e.getMessage());
+                future.completeExceptionally(
+                    new RuntimeException("Firebase delete failed: " + e.getMessage())
+                );
+            });
         
         return future;
     }
