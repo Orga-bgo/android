@@ -38,7 +38,6 @@ public class CustomerRepository {
             .thenApply(customers -> {
                 // Sort by name client-side
                 List<Customer> sortedCustomers = customers.stream()
-                    .filter(customer -> customer.getDeletedAt() == null || customer.getDeletedAt().isEmpty())
                     .sorted((a, b) -> {
                         String nameA = a.getName() != null ? a.getName() : "";
                         String nameB = b.getName() != null ? b.getName() : "";
