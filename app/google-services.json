@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "225608604855",
+    "project_id": "accountverwaltung-550dc",
+    "storage_bucket": "accountverwaltung-550dc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:225608604855:android:2d7ae7479f2a16dbcbc132",
+        "android_client_info": {
+          "package_name": "de.babixgo.monopolygo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDhy4JpPVk2qiaXGg12OsSmrCTkcz__fkU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
