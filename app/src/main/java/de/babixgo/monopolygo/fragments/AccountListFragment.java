@@ -65,7 +65,7 @@ public class AccountListFragment extends Fragment {
     // ==================== LOAD ACCOUNTS ====================
     
     private void loadAccounts() {
-        Log.d(TAG, "Loading accounts from Supabase");
+        Log.d(TAG, "Loading accounts from Firebase");
         
         repository.getAllAccounts()
             .thenAccept(accounts -> {
