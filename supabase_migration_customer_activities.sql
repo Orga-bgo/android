@@ -44,10 +44,16 @@ CREATE INDEX IF NOT EXISTS idx_customer_activities_created_at ON customer_activi
 -- Enable RLS
 ALTER TABLE customer_activities ENABLE ROW LEVEL SECURITY;
 
--- Add policy
-CREATE POLICY "Allow all for authenticated users" ON customer_activities
-    FOR ALL USING (auth.role() = 'authenticated' OR auth.role() = 'anon');
+-- Add policies
+-- Allow authenticated users to read audit records
+CREATE POLICY "Allow authenticated read customer_activities" ON customer_activities
+    FOR SELECT
+    USING (auth.role() = 'authenticated');
 
+-- Allow authenticated users to insert audit records
+CREATE POLICY "Allow authenticated insert customer_activities" ON customer_activities
+    FOR INSERT
+    WITH CHECK (auth.role() = 'authenticated');
 -- Update schema version
 INSERT INTO schema_version (version, description) VALUES
 (5, 'Added customer_activities table for comprehensive audit trail and activity tracking')
