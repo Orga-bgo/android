@@ -45,30 +45,28 @@ public class EventRepository {
      * Create new event
      */
     public CompletableFuture<Event> createEvent(Event event) {
-        return CompletableFuture.supplyAsync(() -> {
-            if (!firebase.isConfigured()) {
-                throw new RuntimeException("Firebase ist nicht konfiguriert.");
-            }
-            
-            String now = getCurrentTimestamp();
-            event.setCreatedAt(now);
-            event.setUpdatedAt(now);
-            
-            String id = event.getId() != 0 ? String.valueOf(event.getId()) : null;
-            
-            return firebase.save(COLLECTION, event, id).join();
-        });
+        if (!firebase.isConfigured()) {
+            return CompletableFuture.failedFuture(
+                new RuntimeException("Firebase ist nicht konfiguriert.")
+            );
+        }
+        
+        String now = getCurrentTimestamp();
+        event.setCreatedAt(now);
+        event.setUpdatedAt(now);
+        
+        String id = event.getId() != 0 ? String.valueOf(event.getId()) : null;
+        
+        return firebase.save(COLLECTION, event, id);
     }
     
     /**
      * Update event
      */
     public CompletableFuture<Event> updateEvent(Event event) {
-        return CompletableFuture.supplyAsync(() -> {
-            event.setUpdatedAt(getCurrentTimestamp());
-            
-            return firebase.save(COLLECTION, event, String.valueOf(event.getId())).join();
-        });
+        event.setUpdatedAt(getCurrentTimestamp());
+        
+        return firebase.save(COLLECTION, event, String.valueOf(event.getId()));
     }
     
     /**

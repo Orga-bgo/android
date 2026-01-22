@@ -79,33 +79,31 @@ public class AccountRepository {
      * Neuen Account erstellen
      */
     public CompletableFuture<Account> createAccount(Account account) {
-        return CompletableFuture.supplyAsync(() -> {
-            if (!firebase.isConfigured()) {
-                throw new RuntimeException("Firebase ist nicht konfiguriert. Account wurde lokal gesichert, aber nicht in der Datenbank gespeichert.");
-            }
-            
-            // Set timestamps
-            String now = getCurrentTimestamp();
-            account.setCreatedAt(now);
-            account.setUpdatedAt(now);
-            
-            // Generate ID if not set
-            String id = account.getId() != 0 ? String.valueOf(account.getId()) : null;
-            
-            return firebase.save(COLLECTION, account, id).join();
-        });
+        if (!firebase.isConfigured()) {
+            return CompletableFuture.failedFuture(
+                new RuntimeException("Firebase ist nicht konfiguriert. Account wurde lokal gesichert, aber nicht in der Datenbank gespeichert.")
+            );
+        }
+        
+        // Set timestamps
+        String now = getCurrentTimestamp();
+        account.setCreatedAt(now);
+        account.setUpdatedAt(now);
+        
+        // Generate ID if not set
+        String id = account.getId() != 0 ? String.valueOf(account.getId()) : null;
+        
+        return firebase.save(COLLECTION, account, id);
     }
     
     /**
      * Account aktualisieren
      */
     public CompletableFuture<Account> updateAccount(Account account) {
-        return CompletableFuture.supplyAsync(() -> {
-            // Set updated timestamp
-            account.setUpdatedAt(getCurrentTimestamp());
-            
-            return firebase.save(COLLECTION, account, String.valueOf(account.getId())).join();
-        });
+        // Set updated timestamp
+        account.setUpdatedAt(getCurrentTimestamp());
+        
+        return firebase.save(COLLECTION, account, String.valueOf(account.getId()));
     }
     
     /**

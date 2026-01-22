@@ -114,88 +114,79 @@ public class CustomerRepository {
      * Create new customer with activity logging
      */
     public CompletableFuture<Customer> createCustomer(Customer customer) {
-        return CompletableFuture.supplyAsync(() -> {
-            if (!firebase.isConfigured()) {
-                throw new RuntimeException("Firebase ist nicht konfiguriert.");
-            }
-            
-            // Set timestamps
-            String now = getCurrentTimestamp();
-            customer.setCreatedAt(now);
-            customer.setUpdatedAt(now);
-            
-            // Generate ID if not set
-            String id = customer.getId() != 0 ? String.valueOf(customer.getId()) : null;
-            
-            Customer created = firebase.save(COLLECTION, customer, id).join();
-            
-            // Log activity
-            activityRepository.logActivity(
-                created.getId(), 
-                "create", 
-                "customer", 
-                "Kunde erstellt: " + created.getName()
-            ).exceptionally(e -> {
-                // Log error but don't fail the operation
-                Log.e(TAG, "Failed to log customer creation activity", (Throwable) e);
-                return null;
+        if (!firebase.isConfigured()) {
+            return CompletableFuture.failedFuture(
+                new RuntimeException("Firebase ist nicht konfiguriert.")
+            );
+        }
+        
+        // Set timestamps
+        String now = getCurrentTimestamp();
+        customer.setCreatedAt(now);
+        customer.setUpdatedAt(now);
+        
+        // Generate ID if not set
+        String id = customer.getId() != 0 ? String.valueOf(customer.getId()) : null;
+        
+        return firebase.save(COLLECTION, customer, id)
+            .thenCompose(created -> {
+                // Log activity
+                return activityRepository.logActivity(
+                    created.getId(), 
+                    "create", 
+                    "customer", 
+                    "Kunde erstellt: " + created.getName()
+                ).exceptionally(e -> {
+                    // Log error but don't fail the operation
+                    Log.e(TAG, "Failed to log customer creation activity", (Throwable) e);
+                    return null;
+                }).thenApply(v -> created);
             });
-            
-            return created;
-        });
     }
     
     /**
      * Update customer with activity logging
      */
     public CompletableFuture<Customer> updateCustomer(Customer customer) {
-        return CompletableFuture.supplyAsync(() -> {
-            // Set updated timestamp
-            customer.setUpdatedAt(getCurrentTimestamp());
-            
-            Customer updated = firebase.save(COLLECTION, customer, String.valueOf(customer.getId())).join();
-            
-            // Log activity
-            activityRepository.logActivity(
-                updated.getId(), 
-                "update", 
-                "customer", 
-                "Kundendaten aktualisiert: " + updated.getName()
-            ).exceptionally(e -> {
-                Log.e(TAG, "Failed to log customer update activity", (Throwable) e);
-                return null;
+        // Set updated timestamp
+        customer.setUpdatedAt(getCurrentTimestamp());
+        
+        return firebase.save(COLLECTION, customer, String.valueOf(customer.getId()))
+            .thenCompose(updated -> {
+                // Log activity
+                return activityRepository.logActivity(
+                    updated.getId(), 
+                    "update", 
+                    "customer", 
+                    "Kundendaten aktualisiert: " + updated.getName()
+                ).exceptionally(e -> {
+                    Log.e(TAG, "Failed to log customer update activity", (Throwable) e);
+                    return null;
+                }).thenApply(v -> updated);
             });
-            
-            return updated;
-        });
     }
     
     /**
      * Delete customer (soft delete)
-     * Note: Associated customer_accounts should also be soft-deleted
+     * Delete customer (hard delete)
+     * Note: Associated customer_accounts will also be deleted by Firebase cascading rules
      */
     public CompletableFuture<Void> deleteCustomer(long id) {
-        return CompletableFuture.runAsync(() -> {
-            // Get customer name before deleting for activity log
-            Customer customer = firebase.getById(COLLECTION, String.valueOf(id), Customer.class).join();
-            String customerName = customer != null ? customer.getName() : "Unbekannt";
-            
-            // Log activity before deletion
-            activityRepository.logActivity(
-                id, 
-                "delete", 
-                "customer", 
-                "Kunde gelöscht: " + customerName
-            ).exceptionally(e -> {
-                Log.e(TAG, "Failed to log customer deletion activity", (Throwable) e);
-                return null;
+        return firebase.getById(COLLECTION, String.valueOf(id), Customer.class)
+            .thenCompose(customer -> {
+                String customerName = customer != null ? customer.getName() : "Unbekannt";
+                
+                // Log activity before deletion
+                return activityRepository.logActivity(
+                    id, 
+                    "delete", 
+                    "customer", 
+                    "Kunde gelöscht: " + customerName
+                ).exceptionally(e -> {
+                    Log.e(TAG, "Failed to log customer deletion activity", (Throwable) e);
+                    return null;
+                }).thenCompose(v -> firebase.delete(COLLECTION, String.valueOf(id)));
             });
-            
-            // Soft delete customer
-            Map<String, Object> updates = new HashMap<>();
-            updates.put("deletedAt", getCurrentTimestamp());
-            firebase.updateFields(COLLECTION, String.valueOf(id), updates).join();
-        });
     }
     
     /**

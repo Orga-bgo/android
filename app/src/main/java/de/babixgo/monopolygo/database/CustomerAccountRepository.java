@@ -45,45 +45,44 @@ public class CustomerAccountRepository {
      * Automatically encrypts password before storing
      */
     public CompletableFuture<CustomerAccount> createCustomerAccount(CustomerAccount account) {
-        return CompletableFuture.supplyAsync(() -> {
-            Log.d(TAG, "Creating customer account for customer: " + account.getCustomerId());
-            
-            String now = getCurrentTimestamp();
-            account.setCreatedAt(now);
-            account.setUpdatedAt(now);
-            
-            // Encrypt password if present
-            if (account.getCredentialsPassword() != null && !account.getCredentialsPassword().isEmpty()) {
-                String encrypted = EncryptionHelper.encrypt(account.getCredentialsPassword());
-                account.setCredentialsPassword(encrypted);
-            }
-            
-            // Generate ID if not set
-            String id = account.getId() != 0 ? String.valueOf(account.getId()) : null;
-            
-            CustomerAccount created = firebase.save(COLLECTION, account, id).join();
-            
-            // Decrypt password for returning to caller
-            if (created.getCredentialsPassword() != null && !created.getCredentialsPassword().isEmpty()) {
-                String decrypted = EncryptionHelper.decrypt(created.getCredentialsPassword());
-                created.setCredentialsPassword(decrypted);
-            }
-            
-            // Log activity with customer_account_id
-            getActivityRepository().logActivity(
-                created.getCustomerId(),
-                "account_add",
-                "account",
-                "Account hinzugefügt: " + (created.getIngameName() != null ? created.getIngameName() : "Unbekannt"),
-                created.getId()
-            ).exceptionally(e -> {
-                Log.e(TAG, "Failed to log activity for account creation", e);
-                return null;
+        Log.d(TAG, "Creating customer account for customer: " + account.getCustomerId());
+        
+        String now = getCurrentTimestamp();
+        account.setCreatedAt(now);
+        account.setUpdatedAt(now);
+        
+        // Encrypt password if present
+        if (account.getCredentialsPassword() != null && !account.getCredentialsPassword().isEmpty()) {
+            String encrypted = EncryptionHelper.encrypt(account.getCredentialsPassword());
+            account.setCredentialsPassword(encrypted);
+        }
+        
+        // Generate ID if not set
+        String id = account.getId() != 0 ? String.valueOf(account.getId()) : null;
+        
+        return firebase.save(COLLECTION, account, id)
+            .thenApply(created -> {
+                // Decrypt password for returning to caller
+                if (created.getCredentialsPassword() != null && !created.getCredentialsPassword().isEmpty()) {
+                    String decrypted = EncryptionHelper.decrypt(created.getCredentialsPassword());
+                    created.setCredentialsPassword(decrypted);
+                }
+                
+                // Log activity with customer_account_id
+                getActivityRepository().logActivity(
+                    created.getCustomerId(),
+                    "account_add",
+                    "account",
+                    "Account hinzugefügt: " + (created.getIngameName() != null ? created.getIngameName() : "Unbekannt"),
+                    created.getId()
+                ).exceptionally(e -> {
+                    Log.e(TAG, "Failed to log activity for account creation", e);
+                    return null;
+                });
+                
+                Log.d(TAG, "Customer account created with ID: " + created.getId());
+                return created;
             });
-            
-            Log.d(TAG, "Customer account created with ID: " + created.getId());
-            return created;
-        });
     }
 
     // ==================== READ ====================
@@ -141,42 +140,39 @@ public class CustomerAccountRepository {
      * Automatically encrypts password if changed
      */
     public CompletableFuture<Void> updateCustomerAccount(CustomerAccount account) {
-        return CompletableFuture.runAsync(() -> {
-            Log.d(TAG, "Updating customer account: " + account.getId());
-            
-            Map<String, Object> updates = buildUpdateMap(account);
-            updates.put("updatedAt", getCurrentTimestamp());
-            
-            firebase.updateFields(COLLECTION, String.valueOf(account.getId()), updates).join();
-            
-            // Log activity with customer_account_id
-            getActivityRepository().logActivity(
-                account.getCustomerId(),
-                "account_update",
-                "account",
-                "Account aktualisiert: " + (account.getIngameName() != null ? account.getIngameName() : "ID " + account.getId()),
-                account.getId()
-            ).exceptionally(e -> {
-                Log.e(TAG, "Failed to log activity for account update", e);
-                return null;
+        Log.d(TAG, "Updating customer account: " + account.getId());
+        
+        Map<String, Object> updates = buildUpdateMap(account);
+        updates.put("updatedAt", getCurrentTimestamp());
+        
+        return firebase.updateFields(COLLECTION, String.valueOf(account.getId()), updates)
+            .thenRun(() -> {
+                // Log activity with customer_account_id
+                getActivityRepository().logActivity(
+                    account.getCustomerId(),
+                    "account_update",
+                    "account",
+                    "Account aktualisiert: " + (account.getIngameName() != null ? account.getIngameName() : "ID " + account.getId()),
+                    account.getId()
+                ).exceptionally(e -> {
+                    Log.e(TAG, "Failed to log activity for account update", e);
+                    return null;
+                });
+                
+                Log.d(TAG, "Customer account updated successfully");
             });
-            
-            Log.d(TAG, "Customer account updated successfully");
-        });
     }
     
     /**
      * Update backup reference for boost service
      */
     public CompletableFuture<Void> updateBackupReference(long customerAccountId, long accountId) {
-        return CompletableFuture.runAsync(() -> {
-            Map<String, Object> updates = new HashMap<>();
-            updates.put("backupAccountId", accountId);
-            updates.put("backupCreatedAt", getCurrentTimestamp());
-            updates.put("updatedAt", getCurrentTimestamp());
-            
-            firebase.updateFields(COLLECTION, String.valueOf(customerAccountId), updates).join();
-        });
+        Map<String, Object> updates = new HashMap<>();
+        updates.put("backupAccountId", accountId);
+        updates.put("backupCreatedAt", getCurrentTimestamp());
+        updates.put("updatedAt", getCurrentTimestamp());
+        
+        return firebase.updateFields(COLLECTION, String.valueOf(customerAccountId), updates);
     }
 
     // ==================== DELETE ====================
@@ -185,29 +181,28 @@ public class CustomerAccountRepository {
      * Delete customer account with activity logging
      */
     public CompletableFuture<Void> deleteCustomerAccount(long id) {
-        return CompletableFuture.runAsync(() -> {
-            Log.d(TAG, "Deleting customer account: " + id);
-            
-            // Get account info before deleting for activity log
-            CustomerAccount account = firebase.getById(COLLECTION, String.valueOf(id), CustomerAccount.class).join();
-            
-            if (account != null) {
-                // Log activity before deletion with customer_account_id
-                getActivityRepository().logActivity(
-                    account.getCustomerId(),
-                    "account_delete",
-                    "account",
-                    "Account gelöscht: " + (account.getIngameName() != null ? account.getIngameName() : "ID " + id),
-                    id
-                ).exceptionally(e -> {
-                    Log.e(TAG, "Failed to log activity for account deletion", e);
-                    return null;
-                });
-            }
-            
-            firebase.delete(COLLECTION, String.valueOf(id)).join();
-            Log.d(TAG, "Customer account deleted successfully");
-        });
+        Log.d(TAG, "Deleting customer account: " + id);
+        
+        // Get account info before deleting for activity log
+        return firebase.getById(COLLECTION, String.valueOf(id), CustomerAccount.class)
+            .thenCompose(account -> {
+                if (account != null) {
+                    // Log activity before deletion with customer_account_id
+                    getActivityRepository().logActivity(
+                        account.getCustomerId(),
+                        "account_delete",
+                        "account",
+                        "Account gelöscht: " + (account.getIngameName() != null ? account.getIngameName() : "ID " + id),
+                        id
+                    ).exceptionally(e -> {
+                        Log.e(TAG, "Failed to log activity for account deletion", e);
+                        return null;
+                    });
+                }
+                
+                return firebase.delete(COLLECTION, String.valueOf(id));
+            })
+            .thenRun(() -> Log.d(TAG, "Customer account deleted successfully"));
     }
 
     // ==================== HELPER ====================

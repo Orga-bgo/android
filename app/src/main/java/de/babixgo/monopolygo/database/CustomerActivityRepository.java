@@ -27,25 +27,24 @@ public class CustomerActivityRepository {
      * Log a new customer activity
      */
     public CompletableFuture<CustomerActivity> logActivity(CustomerActivity activity) {
-        return CompletableFuture.supplyAsync(() -> {
-            if (!firebase.isConfigured()) {
-                Log.w(TAG, "Firebase not configured, skipping activity log");
-                return activity;
-            }
-            
-            // Set created_at if not already set
-            if (activity.getCreatedAt() == null) {
-                activity.setCreatedAt(getCurrentTimestamp());
-            }
-            
-            // Generate ID if not set
-            String id = activity.getId() != 0 ? String.valueOf(activity.getId()) : null;
-            
-            CustomerActivity created = firebase.save(COLLECTION, activity, id).join();
-            Log.d(TAG, "Activity logged: " + activity.getActivityType() + " for customer " + activity.getCustomerId());
-            
-            return created;
-        });
+        if (!firebase.isConfigured()) {
+            Log.w(TAG, "Firebase not configured, skipping activity log");
+            return CompletableFuture.completedFuture(activity);
+        }
+        
+        // Set created_at if not already set
+        if (activity.getCreatedAt() == null) {
+            activity.setCreatedAt(getCurrentTimestamp());
+        }
+        
+        // Generate ID if not set
+        String id = activity.getId() != 0 ? String.valueOf(activity.getId()) : null;
+        
+        return firebase.save(COLLECTION, activity, id)
+            .thenApply(created -> {
+                Log.d(TAG, "Activity logged: " + activity.getActivityType() + " for customer " + activity.getCustomerId());
+                return created;
+            });
     }
     
     /**

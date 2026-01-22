@@ -46,30 +46,28 @@ public class TeamRepository {
      * Create new team
      */
     public CompletableFuture<Team> createTeam(Team team) {
-        return CompletableFuture.supplyAsync(() -> {
-            if (!firebase.isConfigured()) {
-                throw new RuntimeException("Firebase ist nicht konfiguriert.");
-            }
-            
-            String now = getCurrentTimestamp();
-            team.setCreatedAt(now);
-            team.setUpdatedAt(now);
-            
-            String id = team.getId() != 0 ? String.valueOf(team.getId()) : null;
-            
-            return firebase.save(COLLECTION, team, id).join();
-        });
+        if (!firebase.isConfigured()) {
+            return CompletableFuture.failedFuture(
+                new RuntimeException("Firebase ist nicht konfiguriert.")
+            );
+        }
+        
+        String now = getCurrentTimestamp();
+        team.setCreatedAt(now);
+        team.setUpdatedAt(now);
+        
+        String id = team.getId() != 0 ? String.valueOf(team.getId()) : null;
+        
+        return firebase.save(COLLECTION, team, id);
     }
     
     /**
      * Update team
      */
     public CompletableFuture<Team> updateTeam(Team team) {
-        return CompletableFuture.supplyAsync(() -> {
-            team.setUpdatedAt(getCurrentTimestamp());
-            
-            return firebase.save(COLLECTION, team, String.valueOf(team.getId())).join();
-        });
+        team.setUpdatedAt(getCurrentTimestamp());
+        
+        return firebase.save(COLLECTION, team, String.valueOf(team.getId()));
     }
     
     /**
