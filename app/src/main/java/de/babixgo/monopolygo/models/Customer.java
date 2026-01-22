@@ -59,20 +59,61 @@ public class Customer {
     
     /**
      * Number of accounts for this customer
-     * TODO: Will be calculated from customer_accounts table
+     * Calculated from loaded accounts list
      */
     public int getAccountCount() {
-        // Stub implementation - returns 0 for now
-        return 0;
+        return accounts != null ? accounts.size() : 0;
     }
     
     /**
      * Returns all services that this customer uses (across all accounts)
      * Format: "Partner / Race / Boost"
-     * TODO: Will be calculated from customer_accounts table
+     * Aggregates services from all accounts
      */
     public String getServicesDisplay() {
-        // Stub implementation - returns "-" for now
-        return "-";
+        if (accounts == null || accounts.isEmpty()) {
+            return "-";
+        }
+        
+        Set<String> uniqueServices = new HashSet<>();
+        
+        for (CustomerAccount account : accounts) {
+            if (account.isServicePartner()) {
+                uniqueServices.add("Partner");
+            }
+            if (account.isServiceRace()) {
+                uniqueServices.add("Race");
+            }
+            if (account.isServiceBoost()) {
+                uniqueServices.add("Boost");
+            }
+        }
+        
+        return uniqueServices.isEmpty() ? "-" : String.join(" / ", uniqueServices);
+    }
+    
+    /**
+     * Get total count of each service across all accounts
+     */
+    public int getServiceCount(String serviceType) {
+        if (accounts == null || accounts.isEmpty()) {
+            return 0;
+        }
+        
+        int count = 0;
+        for (CustomerAccount account : accounts) {
+            switch (serviceType.toLowerCase()) {
+                case "partner":
+                    if (account.isServicePartner()) count++;
+                    break;
+                case "race":
+                    if (account.isServiceRace()) count++;
+                    break;
+                case "boost":
+                    if (account.isServiceBoost()) count++;
+                    break;
+            }
+        }
+        return count;
     }
 }

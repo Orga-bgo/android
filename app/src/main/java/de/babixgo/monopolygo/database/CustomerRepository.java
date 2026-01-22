@@ -2,6 +2,7 @@ package de.babixgo.monopolygo.database;
 
 import de.babixgo.monopolygo.models.Customer;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.text.SimpleDateFormat;
@@ -14,19 +15,38 @@ import java.util.Locale;
  */
 public class CustomerRepository {
     private final SupabaseManager supabase;
+    private final CustomerAccountRepository accountRepository;
     
     public CustomerRepository() {
         this.supabase = SupabaseManager.getInstance();
+        this.accountRepository = new CustomerAccountRepository();
     }
     
     /**
      * Get all customers ordered by name
+     * @param loadAccounts If true, loads accounts for each customer
      */
-    public CompletableFuture<List<Customer>> getAllCustomers() {
+    public CompletableFuture<List<Customer>> getAllCustomers(boolean loadAccounts) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 ensureConfigured();
-                return supabase.select("customers", Customer.class, "order=name.asc");
+                List<Customer> customers = supabase.select("customers", Customer.class, "order=name.asc");
+                
+                if (loadAccounts) {
+                    // Load accounts for each customer
+                    for (Customer customer : customers) {
+                        try {
+                            List<de.babixgo.monopolygo.models.CustomerAccount> accounts = 
+                                accountRepository.getAccountsByCustomerId(customer.getId()).get();
+                            customer.setAccounts(accounts);
+                        } catch (Exception e) {
+                            // Log error but continue with other customers
+                            customer.setAccounts(new ArrayList<>());
+                        }
+                    }
+                }
+                
+                return customers;
             } catch (IOException e) {
                 throw wrapIOException("Fehler beim Laden der Kunden", e);
             }
@@ -34,17 +54,44 @@ public class CustomerRepository {
     }
     
     /**
-     * Get customer by ID
+     * Get all customers ordered by name (without loading accounts)
      */
-    public CompletableFuture<Customer> getCustomerById(long id) {
+    public CompletableFuture<List<Customer>> getAllCustomers() {
+        return getAllCustomers(false);
+    }
+    
+    /**
+     * Get customer by ID
+     * @param loadAccounts If true, loads accounts for the customer
+     */
+    public CompletableFuture<Customer> getCustomerById(long id, boolean loadAccounts) {
         return CompletableFuture.supplyAsync(() -> {
             try {
                 ensureConfigured();
-                return supabase.selectSingle("customers", Customer.class, "id=eq." + id);
+                Customer customer = supabase.selectSingle("customers", Customer.class, "id=eq." + id);
+                
+                if (loadAccounts && customer != null) {
+                    try {
+                        List<de.babixgo.monopolygo.models.CustomerAccount> accounts = 
+                            accountRepository.getAccountsByCustomerId(customer.getId()).get();
+                        customer.setAccounts(accounts);
+                    } catch (Exception e) {
+                        customer.setAccounts(new ArrayList<>());
+                    }
+                }
+                
+                return customer;
             } catch (IOException e) {
                 throw wrapIOException("Fehler beim Laden des Kunden", e);
             }
         });
+    }
+    
+    /**
+     * Get customer by ID (without loading accounts)
+     */
+    public CompletableFuture<Customer> getCustomerById(long id) {
+        return getCustomerById(id, false);
     }
     
     /**

@@ -1,6 +1,7 @@
 package de.babixgo.monopolygo.fragments;
 
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -15,7 +16,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import de.babixgo.monopolygo.R;
+import de.babixgo.monopolygo.activities.CustomerDetailActivity;
 import de.babixgo.monopolygo.adapters.CustomerListAdapter;
+import de.babixgo.monopolygo.database.CustomerActivityRepository;
 import de.babixgo.monopolygo.database.CustomerRepository;
 import de.babixgo.monopolygo.models.Customer;
 
@@ -30,6 +33,7 @@ public class CustomerManagementFragment extends Fragment {
     private RecyclerView rvCustomers;
     private CustomerListAdapter adapter;
     private CustomerRepository repository;
+    private CustomerActivityRepository activityRepository;
     private FloatingActionButton fabCreateCustomer;
     
     @Nullable
@@ -41,6 +45,7 @@ public class CustomerManagementFragment extends Fragment {
         
         // Initialize Repository
         repository = new CustomerRepository();
+        activityRepository = new CustomerActivityRepository();
         
         // Setup RecyclerView
         rvCustomers = view.findViewById(R.id.rv_customers);
@@ -60,12 +65,12 @@ public class CustomerManagementFragment extends Fragment {
     }
     
     /**
-     * Load customers from repository
+     * Load customers from repository with their accounts
      */
     private void loadCustomers() {
-        Log.d(TAG, "Loading customers");
+        Log.d(TAG, "Loading customers with accounts");
         
-        repository.getAllCustomers()
+        repository.getAllCustomers(true) // Load with accounts
             .thenAccept(customers -> {
                 if (getActivity() != null) {
                     getActivity().runOnUiThread(() -> {
@@ -130,6 +135,11 @@ public class CustomerManagementFragment extends Fragment {
                         Toast.makeText(requireContext(), 
                             "Kunde erstellt: " + createdCustomer.getName(), 
                             Toast.LENGTH_SHORT).show();
+                        
+                        // Log activity
+                        logActivity(createdCustomer.getId(), "create", "customer", 
+                            "Kunde erstellt: " + createdCustomer.getName());
+                        
                         loadCustomers(); // Reload list
                     });
                 }
@@ -148,13 +158,23 @@ public class CustomerManagementFragment extends Fragment {
     }
     
     /**
-     * Handle customer click
-     * For now, just show a Toast
+     * Handle customer click - navigate to detail activity
      */
     private void onCustomerClick(Customer customer) {
-        Toast.makeText(requireContext(), 
-            "Kunde: " + customer.getName(), 
-            Toast.LENGTH_SHORT).show();
+        Intent intent = new Intent(requireContext(), CustomerDetailActivity.class);
+        intent.putExtra(CustomerDetailActivity.EXTRA_CUSTOMER_ID, customer.getId());
+        startActivity(intent);
+    }
+    
+    /**
+     * Log customer activity
+     */
+    private void logActivity(long customerId, String activityType, String category, String description) {
+        activityRepository.logActivity(customerId, activityType, category, description)
+            .exceptionally(throwable -> {
+                Log.e(TAG, "Failed to log activity", throwable);
+                return null;
+            });
     }
     
     @Override
