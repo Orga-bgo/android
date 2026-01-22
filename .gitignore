@@ -50,8 +50,6 @@ local.properties
 
 # google-services.json contains sensitive Firebase project configuration
 # Each developer must download their own copy from Firebase Console
-app/google-services.json
-google-services.json
 
 # Firebase local state (generated during development)
 .firebase/
