@@ -86,7 +86,9 @@ public class AccountListAdapter extends RecyclerView.Adapter<AccountListAdapter.
         }
         
         private String formatDate(String timestamp) {
-            if (timestamp == null) return "---";
+            if (timestamp == null || timestamp.isEmpty() || timestamp.equals("0")) {
+                return "0";
+            }
             
             try {
                 SimpleDateFormat inputFormat = new SimpleDateFormat(
@@ -96,7 +98,11 @@ public class AccountListAdapter extends RecyclerView.Adapter<AccountListAdapter.
                 Date date = inputFormat.parse(timestamp);
                 return outputFormat.format(date);
             } catch (Exception e) {
-                return timestamp.substring(0, Math.min(10, timestamp.length()));
+                // If parsing fails, try to return first 10 chars or "0"
+                if (timestamp.length() >= 10) {
+                    return timestamp.substring(0, 10);
+                }
+                return "0";
             }
         }
     }

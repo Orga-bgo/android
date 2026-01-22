@@ -72,6 +72,14 @@ public class FirebaseManager {
                 for (DataSnapshot child : snapshot.getChildren()) {
                     T item = child.getValue(clazz);
                     if (item != null) {
+                        // Set ID from Firebase key
+                        try {
+                            String key = child.getKey();
+                            Method setIdMethod = item.getClass().getMethod("setId", long.class);
+                            setIdMethod.invoke(item, Long.parseLong(key));
+                        } catch (Exception e) {
+                            Log.w(TAG, "Could not set ID on object", e);
+                        }
                         items.add(item);
                     }
                 }
